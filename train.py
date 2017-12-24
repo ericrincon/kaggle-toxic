@@ -58,8 +58,8 @@ def balanced_fit(x, y, batch_size, class_name=None):
                       {name: y[i][batch_indices] for i, name in enumerate(target_names)}
 
 
-def setup_callbacks():
-    tensorboard = TensorBoard(log_dir='logs')
+def setup_callbacks(log_dir='logs'):
+    tensorboard = TensorBoard(log_dir=log_dir)
     early_stopping = EarlyStopping()
 
     return [tensorboard]

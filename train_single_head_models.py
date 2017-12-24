@@ -1,5 +1,5 @@
 import pandas as pd
-
+import os.path
 from models.model import get_model
 
 from gensim.models.word2vec import Word2Vec
@@ -52,7 +52,11 @@ def main():
                                          class_name=model_name)
 
         # Set up callbacks
-        callbacks = setup_callbacks()
+        log_dir = 'logs/{}'.format(model_name)
+        
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+        callbacks = setup_callbacks(log_dir=log_dir)
 
         model.fit_generator(balanaced_fit_gen, steps_per_epoch=get_steps_per_epoch(args.batch_size),
                             verbose=2, epochs=args.epochs, callbacks=callbacks,
