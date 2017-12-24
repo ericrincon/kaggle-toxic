@@ -56,7 +56,7 @@ def build_model_input(model_input, vocab_size, embedding_dim, input_length,
     return Embedding(**kwargs)(model_input)
 
 
-def build_model_output(model):
+def build_multi_head_model_output(model):
     """
     This function builds the output layer which has 6 output nodes
     where each node is a binary classifier for one of the 6 types of
@@ -96,7 +96,7 @@ def _build_model(model_input,  model_outputs):
     return model
 
 
-def build_model(model, vocab_size, vector_dim, input_length, embedding_matrix=None):
+def build_multi_head_model(model, vocab_size, vector_dim, input_length, embedding_matrix=None):
     """
 
     :param model:
@@ -109,7 +109,23 @@ def build_model(model, vocab_size, vector_dim, input_length, embedding_matrix=No
                                      input_length, embedding_matrix=embedding_matrix)
 
     model = model(model_inputs)
-    model_outputs = build_model_output(model)
+    model_outputs = build_multi_head_model_output(model)
 
     return _build_model(model_input, model_outputs)
 
+
+def build_single_head_model_output(model, name):
+    return Dense(1, activation='sigmoid', name=name)(model)
+
+
+def build_single_head_model(model, vocab_size, vector_dim, input_length, name,
+                            embedding_matrix=None):
+    model_input = Input(shape=(input_length,), dtype='int32', name='input')
+
+    model_inputs = build_model_input(model_input, vocab_size, vector_dim,
+                                     input_length, embedding_matrix=embedding_matrix)
+
+    model = model(model_inputs)
+    model_outputs = build_single_head_model_output(model, name)
+
+    return _build_model(model_input, model_outputs)

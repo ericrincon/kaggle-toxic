@@ -60,7 +60,7 @@ def deep_pyramid(model_input, nb_filters=100, filter_size=3, dropout=0.5):
 
     flattened_features = Flatten()(pooling)
 
-    dropout_layer = Dropout()(flattened_features)
+    dropout_layer = Dropout(dropout)(flattened_features)
 
     return dropout_layer
 
