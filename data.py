@@ -4,8 +4,7 @@ import pandas as pd
 from keras.preprocessing.sequence import pad_sequences
 
 from sklearn.model_selection import StratifiedShuffleSplit
-
-from evaluate import get_targets
+from train import TARGET_NAMES
 
 from keras.preprocessing.text import Tokenizer
 
@@ -40,25 +39,24 @@ def get_train_valid_split(x, y):
            [_y[train_index] for _y in y], [_y[valid_index] for _y in y]
 
 
-def create_submission(model, test_data, tokenizer, seq_length):
-    test_texts = test_data['comment_text'].astype(str)
+def create_submission(prob_predictions_df, test_data):
+    """
+    Simple function that creates a pandas dataframe from predictions and
+    creates a csv file for submission to kaggle
 
-    test_examples = tokenizer.texts_to_sequences(test_texts)
-    test_examples = pad_sequences(test_examples, seq_length)
+    :param prob_predictions_df:
+    :param test_data:
+    :return:
+    """
 
-    preds = model.predict(test_examples)
+    # p.dump(class_predictions, open('class_preds.p', 'wb'))
+    ids = test_data['id'].to_frame()
 
-    class_predictions = get_targets(preds)
-    p.dump(class_predictions, open('class_preds.p', 'wb'))
+    preds_df = pd.concat([ids, prob_predictions_df], axis=1)
+    columns = ['id']
+    columns.extend(TARGET_NAMES)
+    preds_df.columns = columns
 
-
-    series = list(map(lambda x: pd.Series(x.flatten()), preds))
-    preds_df = [test_data['id']]
-    preds_df.extend(series)
-
-    preds_df = pd.concat(preds_df, axis=1)
-    preds_df.columns = ['id', 'toxic', 'severe_toxic', 'obscene', 'threat',
-                        'insult', 'identity_hate']
     preds_df.to_csv('submission.csv', index=False)
 
 
@@ -70,3 +68,15 @@ def setup_fit_tokenizer(texts, seq_length):
     examples = pad_sequences(examples, seq_length)
 
     return tokenizer, examples
+
+
+def preds_to_df(prob_predictions):
+    """
+
+    :param prob_predictions: a list of predictiosn from a keras model
+    each element in the list should be a column vector
+    :return:
+    """
+    preds_as_list_of_series = list(map(lambda x: pd.Series(x.flatten()), prob_predictions))
+
+    return pd.concat(preds_as_list_of_series, axis=1)

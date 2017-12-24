@@ -13,3 +13,4 @@ def build_base_arg_parser():
     argument_parser.add_argument('--batch-size', default=64, type=int)
 
     return argument_parser
+
