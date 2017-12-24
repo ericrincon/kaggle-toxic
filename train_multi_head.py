@@ -9,7 +9,7 @@ from gensim.models.word2vec import Word2Vec
 from util import build_base_arg_parser
 from train import balanced_fit, get_steps_per_epoch, setup_callbacks
 from data import get_training_data, get_train_valid_split, create_submission, \
-    setup_fit_tokenizer
+    setup_fit_tokenizer, preds_to_df
 from models.model import build_embedding_matrix, build_multi_head_model
 
 
@@ -51,7 +51,15 @@ def main():
     print('\nCreating submission file...')
     test_data = pd.read_csv(args.test)
 
-    create_submission(model, test_data, tokenizer, args.seq_length)
+    test_texts = test_data['comment_text'].astype(str)
+
+    test_examples = tokenizer.texts_to_sequences(test_texts)
+    test_examples = pad_sequences(test_examples, args.seq_length)
+
+    prob_predictions = model.predict(test_examples)
+    preds_df = preds_to_df(prob_predictions)
+
+    create_submission(preds_df, test_data)
 
 
 
