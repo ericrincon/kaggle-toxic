@@ -1,6 +1,11 @@
 import pickle as p
-
+import numpy as np
 import pandas as pd
+import spacy
+import h5py
+
+from tqdm import tqdm
+
 from keras.preprocessing.sequence import pad_sequences
 
 from sklearn.model_selection import StratifiedShuffleSplit
@@ -8,6 +13,21 @@ from train import TARGET_NAMES
 
 from keras.preprocessing.text import Tokenizer
 
+
+# Load spacy once
+nlp = spacy.load('en')
+
+
+def load_train(path):
+    data = h5py.File(path, 'r')
+
+    return data['x'][:], data['y'][:]
+
+
+def load_test(path):
+    data = h5py.File(path, 'r')
+
+    return data['x'][:]
 
 def get_training_data(path):
     train_data = pd.read_csv(path)
@@ -19,24 +39,29 @@ def get_training_data(path):
 
     return texts, labels
 
+
 def get_train_valid_split(x, y):
     sss = StratifiedShuffleSplit(n_splits=1, test_size=.1, random_state=0)
-    train_index = []
-    valid_index = []
 
-    for _y in y:
-        train_split, valid_split = [(train, test) for train, test in sss.split(X=x,
-                                                                           y=_y)][0]
-        train_index.extend(train_split.tolist())
-        valid_index.extend(valid_split.tolist())
+    train, test = [(train, test) for train, test in sss.split(X=x, y=y)][0]
 
-    # train_index = np.concatenate(train_index)
-    # valid_index = np.concatenate(valid_index)
-    train_index = list(set(train_index))
-    valid_index = list(set(valid_index))
-
-    return x[train_index], x[valid_index], \
-           [_y[train_index] for _y in y], [_y[valid_index] for _y in y]
+    return x[train], x[test], [_y[train] for _y in y], [_y[test] for _y in y]
+    # train_index = []
+    # valid_index = []
+    #
+    # for _y in y:
+    #     train_split, valid_split = [(train, test) for train, test in sss.split(X=x,
+    #                                                                        y=_y)][0]
+    #     train_index.extend(train_split.tolist())
+    #     valid_index.extend(valid_split.tolist())
+    #
+    # # train_index = np.concatenate(train_index)
+    # # valid_index = np.concatenate(valid_index)
+    # train_index = list(set(train_index))
+    # valid_index = list(set(valid_index))
+    #
+    # return x[train_index], x[valid_index], \
+    #        [_y[train_index] for _y in y], [_y[valid_index] for _y in y]
 
 
 def create_submission(prob_predictions_df, test_data):
@@ -60,15 +85,38 @@ def create_submission(prob_predictions_df, test_data):
     preds_df.to_csv('submission.csv', index=False)
 
 
-def setup_fit_tokenizer(texts, seq_length):
-    tokenizer = Tokenizer()
+def setup_fit_tokenizer(texts):
+    tokenizer = Tokenizer(num_words=20000)
     tokenizer.fit_on_texts(texts)
+
+    return tokenizer
+
+def load_setup_fit_tokenizer(texts, seq_length):
+    tokenizer = setup_fit_tokenizer(texts)
 
     examples = tokenizer.texts_to_sequences(texts)
     examples = pad_sequences(examples, seq_length)
 
     return tokenizer, examples
 
+
+def load_setup_fit_sent_tokenizer(texts, max_words, max_sentences=5):
+    tokenizer = setup_fit_tokenizer(texts)
+
+    examples = np.zeros((texts.shape[0], max_sentences, max_words), dtype=np.int32)
+
+    for (example_i, comment) in tqdm(enumerate(texts[:100])):
+        tokens = nlp(comment)
+
+        for sentence_i, sentence in enumerate(tokens.sents):
+            if sentence_i == max_sentences:
+                break
+
+            tokenized_sentence = tokenizer.texts_to_sequences([sentence.text])
+            tokenized_sentence = pad_sequences(tokenized_sentence, max_words)
+            examples[example_i, sentence_i, :] = tokenized_sentence[0]
+
+    return tokenizer, examples
 
 def preds_to_df(prob_predictions):
     """

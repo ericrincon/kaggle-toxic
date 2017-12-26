@@ -1,4 +1,7 @@
 import pandas as pd
+import numpy as np
+import os.path
+import pickle as p
 
 from keras.preprocessing.sequence import pad_sequences
 
@@ -8,18 +11,18 @@ from gensim.models.word2vec import Word2Vec
 
 from util import build_base_arg_parser
 from train import balanced_fit, get_steps_per_epoch, setup_callbacks
-from data import get_training_data, get_train_valid_split, create_submission, \
-    setup_fit_tokenizer, preds_to_df
-from models.model import build_embedding_matrix, build_multi_head_model
+from data import get_training_data, create_submission, load_train, load_test
+from models.model import build_embedding_matrix, build_multi_head_model, \
+    build_single_head_model, build_time_dist_model
 
 
 def main():
     argument_parser = build_base_arg_parser()
     args = argument_parser.parse_args()
 
-    texts, labels = get_training_data(args.train)
+    x_train, y_train = load_train(args.train)
     model = get_model(args.model)
-    tokenizer, examples = setup_fit_tokenizer(texts, args.seq_length)
+    tokenizer = p.load(open('tokenizer.p', 'rb'))
     vocab_size = len(tokenizer.word_index)
 
     if args.word2vec:
@@ -30,26 +33,32 @@ def main():
         embedding_matrix = None
         embedding_dim = args.embedding_dim
 
-    model = build_multi_head_model(model, vocab_size, embedding_dim, args.seq_length,
-                            embedding_matrix=embedding_matrix)
+    model = build_time_dist_model(model, vocab_size, embedding_dim, 15,
+                            embedding_matrix=embedding_matrix, name='output')
 
-    print('------------------Summary------------------')
-    print(model.summary())
-    print('Vocab size: {}\n'.format(vocab_size))
+    # x_train, x_valid, y_train, y_valid = get_train_valid_split(examples, labels)
 
-    x_train, x_valid, y_train, y_valid = get_train_valid_split(examples, labels)
-    print(x_train.shape)
+    log_dir = 'logs/{}'.format(args.model)
 
-    balanaced_fit_gen = balanced_fit(x_train, y_train, args.batch_size)
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    callbacks = setup_callbacks(log_dir=log_dir, patience=args.patience)
 
-    # Set up callbacks
-    callbacks = setup_callbacks()
+    if args.balanced:
+        balanaced_fit_gen = balanced_fit(x_train, y_train, args.batch_size,
+                                         class_name=None)
+        model.fit_generator(balanaced_fit_gen, steps_per_epoch=get_steps_per_epoch(args.batch_size),
+                            verbose=2, epochs=args.epochs, callbacks=callbacks,
+                            validation_data=(x_valid, y_valid))
+    else:
+        model.fit(x_train, y_train, args.batch_size,
+                  verbose=1, epochs=args.epochs, callbacks=callbacks, validation_split=0.1)
 
-    model.fit_generator(balanaced_fit_gen, steps_per_epoch=get_steps_per_epoch(args.batch_size),
-                        verbose=2, epochs=args.epochs, callbacks=callbacks,
-                        validation_data=(x_valid, y_valid))
+    print('loading best model....')
+    model.load_weights('model_checkpoint')
     print('\nCreating submission file...')
     test_data = pd.read_csv(args.test)
+    x_test = load_test(args.train)
 
     test_texts = test_data['comment_text'].astype(str)
 
@@ -57,8 +66,8 @@ def main():
     test_examples = pad_sequences(test_examples, args.seq_length)
 
     prob_predictions = model.predict(test_examples)
-    preds_df = preds_to_df(prob_predictions)
 
+    preds_df = pd.DataFrame(prob_predictions)
     create_submission(preds_df, test_data)
 
 

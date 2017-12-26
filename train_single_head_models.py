@@ -48,19 +48,25 @@ def main():
         print('\nTraining model on {} data'.format(model_name))
 
 
-        balanaced_fit_gen = balanced_fit(x_train, [y_train_i], args.batch_size,
-                                         class_name=model_name)
+
 
         # Set up callbacks
         log_dir = 'logs/{}'.format(model_name)
-        
+
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
         callbacks = setup_callbacks(log_dir=log_dir)
 
-        model.fit_generator(balanaced_fit_gen, steps_per_epoch=get_steps_per_epoch(args.batch_size),
-                            verbose=2, epochs=args.epochs, callbacks=callbacks,
-                            validation_data=(x_valid, y_valid[i]))
+        if args.balanced:
+            balanaced_fit_gen = balanced_fit(x_train, [y_train_i], args.batch_size,
+                                             class_name=model_name)
+            model.fit_generator(balanaced_fit_gen, steps_per_epoch=get_steps_per_epoch(args.batch_size),
+                                verbose=2, epochs=args.epochs, callbacks=callbacks,
+                                validation_data=(x_valid, y_valid[i]))
+        else:
+            model.fit(x_train, y_train_i, args.batch_size,
+                        verbose=2, epochs=args.epochs, callbacks=callbacks,
+                        validation_data=(x_valid, y_valid[i]))
 
         preds = model.predict(test_examples)
         preds_list.append(preds)

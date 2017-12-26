@@ -2,7 +2,7 @@ import numpy as np
 
 from evaluate import TARGET_NAMES
 
-from keras.callbacks import TensorBoard, EarlyStopping
+from keras.callbacks import TensorBoard, EarlyStopping, ModelCheckpoint
 
 def get_steps_per_epoch(batch_size):
     return int(24166 / batch_size)
@@ -58,8 +58,9 @@ def balanced_fit(x, y, batch_size, class_name=None):
                       {name: y[i][batch_indices] for i, name in enumerate(target_names)}
 
 
-def setup_callbacks(log_dir='logs'):
+def setup_callbacks(log_dir='logs', patience=5, filepath='model_checkpoint'):
     tensorboard = TensorBoard(log_dir=log_dir)
-    early_stopping = EarlyStopping()
+    early_stopping = EarlyStopping(monitor='val_loss', patience=patience)
+    model_checkpoint = ModelCheckpoint(filepath, monitor='val_acc', save_best_only=True)
 
-    return [tensorboard]
+    return [tensorboard, early_stopping, model_checkpoint]
