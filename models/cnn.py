@@ -26,7 +26,7 @@ def sentence(model_input, nb_filters=100, filter_sizes=None, dropout=0.5):
     return Dropout(dropout)(concatenated_features)
 
 
-def deep_pyramid(model_input, nb_filters=100, filter_size=3, dropout=0.5):
+def deep_pyramid(model_input, nb_filters=128, filter_size=3, dropout=0.5):
     """
     http://ai.tencent.com/ailab/media/publications/ACL3-Brady.pdf
 
@@ -55,8 +55,10 @@ def deep_pyramid(model_input, nb_filters=100, filter_size=3, dropout=0.5):
 
     conv_block_1 = convolution_block(model_input, pool=False)
     conv_block_2 = convolution_block(conv_block_1, pool=True)
+    conv_block_3 = convolution_block(conv_block_2, pool=True)
+    conv_block_4 = convolution_block(conv_block_3, pool=True)
 
-    pooling = MaxPooling1D()(conv_block_2)
+    pooling = MaxPooling1D()(conv_block_4)
 
     flattened_features = Flatten()(pooling)
 
