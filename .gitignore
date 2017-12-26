@@ -1,2 +1,7 @@
 *.p
-_pycache_/
+__pycache__/
+.idea/
+word2vec_models/
+dataset/
+logs/
+*.csv
