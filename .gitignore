@@ -5,3 +5,4 @@ word2vec_models/
 dataset/
 logs/
 *.csv
+.ipynb_checkpoints/
