@@ -7,7 +7,7 @@ from keras.models import Input, Model
 from keras.layers import Dense, Embedding, Flatten, TimeDistributed
 
 from models.cnn import sentence, deep_pyramid
-from models.rnn import simple_birnn, hierarchical_attention_network
+from models.rnn import simple_birnn, hierarchical_attention_network, clstm
 
 from keras.optimizers import Adam
 
@@ -15,7 +15,8 @@ _MODELS = {
     "sentence": sentence,
     'dpcnn': deep_pyramid,
     'birnn': simple_birnn,
-    'han': hierarchical_attention_network
+    'han': hierarchical_attention_network,
+    'clstm': clstm
 }
 
 
@@ -136,7 +137,8 @@ def build_single_head_model(model, vocab_size, vector_dim, input_length, name,
     model_input = Input(shape=(input_length,), dtype='int32', name='input')
 
     model_inputs = build_model_input(model_input, vocab_size, vector_dim,
-                                     input_length, embedding_matrix=embedding_matrix)
+                                     input_length, embedding_matrix=embedding_matrix,
+                                     time_distributed=False)
 
     model = model(model_inputs)
     model_outputs = build_single_head_model_output(model, name)

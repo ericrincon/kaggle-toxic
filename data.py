@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import spacy
 import h5py
+from numpy import __init__
 
 from tqdm import tqdm
 
@@ -33,9 +34,7 @@ def get_training_data(path):
     train_data = pd.read_csv(path)
 
     texts = train_data['comment_text']
-    labels = [train_data.toxic, train_data.severe_toxic, train_data.obscene,
-              train_data.threat, train_data.insult, train_data.identity_hate]
-    labels = list(map(lambda y: y.values, labels))
+    labels = get_labels(train_data)
 
     return texts, labels
 
@@ -64,7 +63,7 @@ def get_train_valid_split(x, y):
     #        [_y[train_index] for _y in y], [_y[valid_index] for _y in y]
 
 
-def create_submission(prob_predictions_df, test_data):
+def create_submission(prob_predictions_df, test_data, filepath='submission.csv'):
     """
     Simple function that creates a pandas dataframe from predictions and
     creates a csv file for submission to kaggle
@@ -82,7 +81,7 @@ def create_submission(prob_predictions_df, test_data):
     columns.extend(TARGET_NAMES)
     preds_df.columns = columns
 
-    preds_df.to_csv('submission.csv', index=False)
+    preds_df.to_csv(filepath, index=False)
 
 
 def setup_fit_tokenizer(texts):
@@ -128,3 +127,12 @@ def preds_to_df(prob_predictions):
     preds_as_list_of_series = list(map(lambda x: pd.Series(x.flatten()), prob_predictions))
 
     return pd.concat(preds_as_list_of_series, axis=1)
+
+
+def get_labels(df):
+    labels = [df.toxic, df.severe_toxic, df.obscene,
+              df.threat, df.insult, df.identity_hate]
+    labels = list(map(lambda y: y.values, labels))
+    labels = np.array(labels).transpose()
+
+    return labels

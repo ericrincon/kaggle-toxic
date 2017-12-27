@@ -59,7 +59,7 @@ def balanced_fit(x, y, batch_size, class_name=None):
 
 
 def setup_callbacks(log_dir='logs', patience=5, filepath='model_checkpoint'):
-    tensorboard = TensorBoard(log_dir=log_dir)
+    tensorboard = TensorBoard(log_dir=log_dir, write_graph=True)
     early_stopping = EarlyStopping(monitor='val_loss', patience=patience)
     model_checkpoint = ModelCheckpoint(filepath, monitor='val_acc', save_best_only=True)
 

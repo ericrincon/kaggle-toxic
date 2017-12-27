@@ -13,5 +13,7 @@ def build_base_arg_parser():
     argument_parser.add_argument('--batch-size', default=64, type=int)
     argument_parser.add_argument('--balanced', default=0, type=int)
     argument_parser.add_argument('--patience', default=5, type=int)
+    argument_parser.add_argument('--experiment-name')
+
     return argument_parser
 
