@@ -3,17 +3,19 @@ import numpy as np
 import pandas as pd
 import spacy
 import h5py
-from numpy import __init__
 
 from tqdm import tqdm
 
 from keras.preprocessing.sequence import pad_sequences
 
 from sklearn.model_selection import StratifiedShuffleSplit
-from train import TARGET_NAMES
+from evaluate import TARGET_NAMES
 
 from keras.preprocessing.text import Tokenizer
 
+from nltk import ngrams
+from nltk.tokenize import word_tokenize
+from keras.preprocessing.text import text_to_word_sequence
 
 # Load spacy once
 nlp = spacy.load('en')
@@ -33,7 +35,7 @@ def load_test(path):
 def get_training_data(path):
     train_data = pd.read_csv(path)
 
-    texts = train_data['comment_text']
+    texts = train_data['comment_text'].astype(str)
     labels = get_labels(train_data)
 
     return texts, labels
@@ -84,8 +86,8 @@ def create_submission(prob_predictions_df, test_data, filepath='submission.csv')
     preds_df.to_csv(filepath, index=False)
 
 
-def setup_fit_tokenizer(texts):
-    tokenizer = Tokenizer(num_words=20000)
+def setup_fit_tokenizer(texts, max_words=25000):
+    tokenizer = Tokenizer(num_words=max_words)
     tokenizer.fit_on_texts(texts)
 
     return tokenizer
@@ -133,6 +135,20 @@ def get_labels(df):
     labels = [df.toxic, df.severe_toxic, df.obscene,
               df.threat, df.insult, df.identity_hate]
     labels = list(map(lambda y: y.values, labels))
-    labels = np.array(labels).transpose()
+    labels = np.array(labels, dtype=np.int32).transpose()
 
     return labels
+
+
+def get_ngram_tokens(documents, ngram):
+    document_ngrams = []
+
+    for document in documents:
+        ngram_tuples = list(ngrams(text_to_word_sequence(document), ngram))
+        ngram_tokens = ' '.join(list(map(lambda ngram: '_'.join(ngram), ngram_tuples)))
+        document_ngrams.append(ngram_tokens)
+
+    return document_ngrams
+
+
+

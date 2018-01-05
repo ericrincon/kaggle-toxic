@@ -1,6 +1,8 @@
 from keras.layers import Conv1D, MaxPooling1D, Concatenate, Flatten, Dropout, \
     Activation, Add, BatchNormalization
 
+from keras import regularizers
+
 
 def sentence(model_input, nb_filters=100, filter_sizes=None, dropout=0.5):
     """
@@ -26,7 +28,38 @@ def sentence(model_input, nb_filters=100, filter_sizes=None, dropout=0.5):
     return Dropout(dropout)(concatenated_features)
 
 
-def deep_pyramid(model_input, nb_filters=300, filter_size=3, dropout=0.5):
+def dpcnn_convolution_block(conv_input, filter_size, nb_filters, pool=True,
+                            l2_weight=0.0001):
+    """
+    A convolution block for the CNN type Deep Pyramid CNNs
+    as defined in the paper.
+
+
+    :param conv_input: the input into the block
+    :param filter_size:
+    :param nb_filters:
+    :param pool:
+    :return:
+    """
+
+    if pool:
+        conv_input = MaxPooling1D(pool_size=filter_size, strides=2)(conv_input)
+    shortcut = conv_input
+
+    pre_activation_1 = Activation('relu')(conv_input)
+    conv_1 = Conv1D(nb_filters, filter_size, kernel_regularizer=regularizers.l2(l2_weight),
+                    activation=None, padding='same')(pre_activation_1)
+    pre_activation_2 = Activation('relu')(conv_1)
+    conv_2 = Conv1D(nb_filters, filter_size, kernel_regularizer=regularizers.l2(l2_weight),
+                    activation=None, padding='same')(pre_activation_2)
+
+    shortcut_connection = Add()([conv_2, shortcut])
+
+    return shortcut_connection
+
+
+def deep_pyramid(model_input, nb_convoultion_blocks=5,
+                 nb_filters=300, filter_size=3, dropout=0.5):
     """
     http://ai.tencent.com/ailab/media/publications/ACL3-Brady.pdf
 
@@ -37,35 +70,16 @@ def deep_pyramid(model_input, nb_filters=300, filter_size=3, dropout=0.5):
     this is to prevent dimension matching at the shortcut connection
     :return:
     """
-    def convolution_block(conv_input, pool=True):
-        if pool:
-            conv_input = MaxPooling1D(pool_size=filter_size, strides=2)(conv_input)
-        shortcut = conv_input
 
-        pre_activation_1 = Activation('relu')(conv_input)
-        conv_1 = Conv1D(nb_filters, filter_size,
-                        activation=None, padding='same')(pre_activation_1)
-        pre_activation_2 = Activation('relu')(conv_1)
-        conv_2 = Conv1D(nb_filters, filter_size,
-                        activation=None, padding='same')(pre_activation_2)
-        # conv_2 = Flatten()(conv_2)
-        shortcut_connection = Add()([conv_2, shortcut])
+    # In the first convolution block max pooling is not applied
+    conv_block = dpcnn_convolution_block(model_input, filter_size,
+                                           nb_filters,  pool=False)
 
-        return shortcut_connection
+    for i in range(nb_convoultion_blocks):
+        conv_block = dpcnn_convolution_block(conv_block, filter_size,
+                                               nb_filters, pool=True)
 
-    conv_block_1 = convolution_block(model_input, pool=False)
-    norm_one = BatchNormalization()(conv_block_1)
-
-    conv_block_2 = convolution_block(norm_one, pool=True)
-    norm_one = BatchNormalization()(conv_block_1)
-
-    conv_block_3 = convolution_block(conv_block_2, pool=True)
-    norm_one= BatchNormalization()(conv_block_1)
-
-    conv_block_4 = convolution_block(conv_block_3, pool=True)
-    norm_one= BatchNormalization()(conv_block_1)
-
-    pooling = MaxPooling1D()(conv_block_4)
+    pooling = MaxPooling1D()(conv_block)
 
     flattened_features = Flatten()(pooling)
 

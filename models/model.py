@@ -8,15 +8,18 @@ from keras.layers import Dense, Embedding, Flatten, TimeDistributed
 
 from models.cnn import sentence, deep_pyramid
 from models.rnn import simple_birnn, hierarchical_attention_network, clstm
-
+from models.nn import fast_text, logistic
 from keras.optimizers import Adam
+from keras import regularizers
 
 _MODELS = {
     "sentence": sentence,
     'dpcnn': deep_pyramid,
     'birnn': simple_birnn,
     'han': hierarchical_attention_network,
-    'clstm': clstm
+    'clstm': clstm,
+    'fasttext': fast_text,
+    'logistic': logistic
 }
 
 
@@ -129,7 +132,8 @@ def build_multi_head_model(model, vocab_size, vector_dim, input_length, model_ar
 
 
 def build_single_head_model_output(model, name):
-    return Dense(6, activation='sigmoid', name=name)(model)
+    return Dense(6, activation='sigmoid', name=name,
+                 kernel_regularizer=regularizers.l2(0.001))(model)
 
 
 def build_single_head_model(model, vocab_size, vector_dim, input_length, name,

@@ -6,11 +6,41 @@ from keras.engine.topology import Layer
 from keras.layers import Conv1D, MaxPooling1D, Concatenate, Flatten, Dropout, \
     Activation, Add, BatchNormalization, Reshape
 
+from keras import regularizers
 
-def simple_birnn(model_input, units=50, dropout=0.1):
-    bi_rnn = Bidirectional(LSTM(units, return_sequences=True))(model_input)
-    attention = Attention()(bi_rnn)
-    max_pool = GlobalMaxPool1D()(attention)
+from models.cnn import dpcnn_convolution_block
+
+"""
+Dict mapping RNN names to the corresponding Keras layer
+"""
+_RNNS = {
+    'CGRU': CuDNNGRU,
+    'CLSTM': CuDNNLSTM,
+    'LSTM': LSTM,
+    'GRU': GRU
+}
+
+
+def get_rnn_name(rnn_name):
+    """
+    Simple function for getting different RNN variants
+
+    :param rnn_name: the name of the RNN layer
+    :return: the corresponding Keras RNN layer
+    """
+    if rnn_name.upper() in _RNNS:
+        return _RNNS[rnn_name]
+    else:
+        raise ValueError('The RNN type {} is not defined!'.format(rnn_name))
+
+
+
+def simple_birnn(model_input, units=50, dropout=0.5, embedding_dropout=0.1):
+    if embedding_dropout:
+        model_input = Dropout(embedding_dropout)(model_input)
+
+    bi_rnn = Bidirectional(CuDNNLSTM(units, return_sequences=True))(model_input)
+    max_pool = GlobalMaxPool1D()(bi_rnn)
     dropout_one = Dropout(dropout)(max_pool)
     dense = Dense(units, activation="relu")(dropout_one)
     dropout_dense = Dropout(dropout)(dense)
@@ -75,36 +105,63 @@ def hierarchical_attention_network(model_input, units=50, rnn_type='gru'):
     return sentence_attention
 
 
-def clstm(model_input, nb_filters=50, filter_sizes=None):
+def clstm(model_input, rnn_units=50, nb_filters=50, embedding_dropout=0.1, output_dropout=0.5,
+          dpcnn=False, filter_sizes=None):
     """
     https://arxiv.org/pdf/1511.08630.pdf
+
+    A Bi-Directional LSTM/GRU with n-gram convolutional features as the input
+
     :param model_input:
-    :return:
+    :param rnn_units: The number of units in the RNN cell note the output vector size of
+    each unit will be twice this number since the RNN is wrapper in a Bi-Directional layer
+    :param nb_filters: the number of filters in the convolution layers
+    :param dpcnn: if to use a deep pyramid style convolution block see the function
+    dpcnn_convolution_block or the deep_pyramid model for more details
+    :param filter_sizes: the size of the n-gram window sizes for the convolution layers
+    :return: the output tensor of the model
     """
 
-    dropout_emb = Dropout(0.25)(model_input)
+    if embedding_dropout:
+        model_input = Dropout(embedding_dropout)(model_input)
 
-    if not filter_sizes:
-        filter_sizes = [2, 3, 4]
+    if dpcnn:
+        # the the number of filters for this convolution block must be the same as the
+        # size of the input embeddings as to avoid a dimension matching transformation in
+        # the shortcut connection.
+        # The embedding shape must be converted into an int as it of type Dimension
+        nb_filters = int(model_input.shape[-1])
 
-    features = []
+        conv_features = dpcnn_convolution_block(model_input, nb_filters=nb_filters,
+                                                filter_size=3, pool=False)
+    else:
+        # If no filter sizes are passed than only a filter size of 3 will be used
+        if not filter_sizes:
+            filter_sizes = [3]
 
-    for filter_size in filter_sizes:
-        feature_map = Conv1D(nb_filters, filter_size, activation='relu',
-                             padding='same')(dropout_emb)
-        # pooling = MaxPooling1D(pool_size=filter_size)(feature_map)
-        flattened_features = Flatten()(feature_map)
-        features.append(flattened_features)
+        features = []
 
+        for filter_size in filter_sizes:
+            feature_map = Conv1D(nb_filters, filter_size, activation='relu', padding='same',
+                                 kernel_regularizer=regularizers.l2(0.0001))(model_input)
+            flattened_features = Flatten()(feature_map)
+            features.append(flattened_features)
 
-    concatenated_features = Concatenate(axis=-1)(features)
-    reshaped = Reshape((len(filter_sizes), 100 * nb_filters))(concatenated_features)
+        if len(features) > 1:
+            conv_features = Concatenate(axis=-1)(features)
+        else:
+            conv_features = features[0]
 
+        conv_features = Reshape((len(filter_sizes), 100 * nb_filters))(conv_features)
 
-    gru = CuDNNGRU(50, return_sequences=False)(reshaped)
-    dropout = Dropout(.5)(gru)
+    gru = Bidirectional(CuDNNLSTM(rnn_units, return_sequences=True))(conv_features)
+    max_pool = GlobalMaxPool1D()(gru)
+    output = Dense(50, activation='relu')(max_pool)
 
-    return dropout
+    if output_dropout:
+        output = Dropout(output_dropout)(output)
+
+    return output
 
 
 
