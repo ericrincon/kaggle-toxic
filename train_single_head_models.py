@@ -1,16 +1,16 @@
 import pandas as pd
 import os.path
-from models.model import get_model
+from toxic_text.models.model import get_model
 
 from gensim.models.word2vec import Word2Vec
 
-from util import build_base_arg_parser
-from train import balanced_fit, get_steps_per_epoch, setup_callbacks, TARGET_NAMES
-from data import get_training_data, get_train_valid_split, create_submission, \
+from toxic_text.train.util import build_base_arg_parser
+from toxic.train.experiment import balanced_fit, get_steps_per_epoch, setup_callbacks, TARGET_NAMES
+from toxic_text.data.load import get_training_data, get_train_valid_split, create_submission, \
     setup_fit_tokenizer, preds_to_df
 from keras.preprocessing.sequence import pad_sequences
 
-from models.model import build_embedding_matrix, build_single_head_model
+from toxic_text.models.model import build_embedding_matrix, build_single_head_model
 
 
 def main():

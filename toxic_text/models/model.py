@@ -4,11 +4,11 @@
 import numpy as np
 
 from keras.models import Input, Model
-from keras.layers import Dense, Embedding, Flatten, TimeDistributed
+from keras.layers import Dense, Embedding, TimeDistributed
 
-from models.cnn import sentence, deep_pyramid
-from models.rnn import simple_birnn, hierarchical_attention_network, clstm
-from models.nn import fast_text, logistic
+from toxic_text.models.cnn import sentence, deep_pyramid
+from toxic_text.models.rnn import simple_birnn, hierarchical_attention_network, clstm
+from toxic_text.models.nn import fast_text, logistic, d2v
 from keras.optimizers import Adam
 from keras import regularizers
 
@@ -19,7 +19,8 @@ _MODELS = {
     'han': hierarchical_attention_network,
     'clstm': clstm,
     'fasttext': fast_text,
-    'logistic': logistic
+    'logistic': logistic,
+    'd2v': d2v
 }
 
 

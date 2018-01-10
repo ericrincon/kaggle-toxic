@@ -1,19 +1,14 @@
 import pandas as pd
-import numpy as np
 import os.path
 import pickle as p
 
-from keras.preprocessing.sequence import pad_sequences
+from toxic_text.models.model import get_model
 
-from models.model import get_model
-
-from gensim.models.word2vec import Word2Vec
-
-from util import build_base_arg_parser
-from train import setup_callbacks
-from data import create_submission, load_train, load_test
-from models.model import build_embedding_matrix, \
-    build_single_head_model, build_time_dist_model
+from toxic_text.train.util import build_base_arg_parser
+from toxic.train.experiment import setup_callbacks
+from toxic_text.data.load import create_submission, load_train_hdf5, load_test_hdf5
+from toxic_text.models.model import build_embedding_matrix, \
+    build_time_dist_model
 
 from gensim.models import KeyedVectors
 
@@ -30,7 +25,7 @@ def main():
     if not os.path.exists(experiment_name):
         os.makedirs(experiment_name)
 
-    x_train, y_train = load_train(args.train)
+    x_train, y_train = load_train_hdf5(args.train)
     model = get_model(args.model)
     tokenizer = p.load(open('tokenizer.p', 'rb'))
     vocab_size = len(tokenizer.word_index)
@@ -64,7 +59,7 @@ def main():
     print('\nCreating submission file...')
 
     test_data = pd.read_csv('dataset/test.csv')
-    x_test = load_test(args.test)
+    x_test = load_test_hdf5(args.test)
     prob_predictions = model.predict(x_test)
     preds_df = pd.DataFrame(prob_predictions)
 

@@ -2,20 +2,20 @@ import numpy as np
 import pandas as pd
 import os.path
 
-from evaluate import TARGET_NAMES
+from toxic_text.test.evaluate import TARGET_NAMES
 
 from keras.callbacks import TensorBoard, EarlyStopping, ModelCheckpoint
 from keras.preprocessing.sequence import pad_sequences
 
-from models.model import get_model
+from toxic_text.models.model import get_model
 
 from gensim.models.word2vec import Word2Vec
 
-from data import create_submission, get_training_data, load_setup_fit_tokenizer
-from models.model import build_embedding_matrix, \
+from toxic_text.data.load import create_submission, get_training_data, load_setup_fit_tokenizer
+from toxic_text.models.model import build_embedding_matrix, \
     build_single_head_model
 
-from util import get_experiment_name
+from toxic_text.train.util import get_experiment_name
 
 from gensim.models import KeyedVectors
 

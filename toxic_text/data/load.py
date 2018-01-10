@@ -1,4 +1,3 @@
-import pickle as p
 import numpy as np
 import pandas as pd
 import spacy
@@ -9,25 +8,24 @@ from tqdm import tqdm
 from keras.preprocessing.sequence import pad_sequences
 
 from sklearn.model_selection import StratifiedShuffleSplit
-from evaluate import TARGET_NAMES
+from toxic_text.test.evaluate import TARGET_NAMES
 
 from keras.preprocessing.text import Tokenizer
 
 from nltk import ngrams
-from nltk.tokenize import word_tokenize
 from keras.preprocessing.text import text_to_word_sequence
 
 # Load spacy once
 nlp = spacy.load('en')
 
 
-def load_train(path):
+def load_train_hdf5(path):
     data = h5py.File(path, 'r')
 
     return data['x'][:], data['y'][:]
 
 
-def load_test(path):
+def load_test_hdf5(path):
     data = h5py.File(path, 'r')
 
     return data['x'][:]

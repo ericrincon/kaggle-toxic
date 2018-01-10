@@ -1,14 +1,14 @@
-from keras.layers import LSTM, Bidirectional, GlobalMaxPool1D, Dropout, Dense, GRU, \
-    TimeDistributed, Flatten, Lambda, CuDNNGRU, CuDNNLSTM, BatchNormalization
+from keras.layers import LSTM, Bidirectional, GlobalMaxPool1D, Dense, GRU, \
+    TimeDistributed, CuDNNGRU, CuDNNLSTM
 from keras import backend as K
 from keras.engine.topology import Layer
 
-from keras.layers import Conv1D, MaxPooling1D, Concatenate, Flatten, Dropout, \
-    Activation, Add, BatchNormalization, Reshape
+from keras.layers import Conv1D, Concatenate, Flatten, Dropout, \
+    Reshape
 
 from keras import regularizers
 
-from models.cnn import dpcnn_convolution_block
+from toxic_text.models.cnn import dpcnn_convolution_block
 
 """
 Dict mapping RNN names to the corresponding Keras layer
