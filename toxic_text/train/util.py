@@ -24,6 +24,7 @@ def get_experiment_name(args):
         experiment_name = args.model
     else:
         experiment_name = args.experiment_name
+    experiment_name = 'experiment_output/{}'.format(experiment_name)
 
     if not os.path.exists(experiment_name):
         os.makedirs(experiment_name)

@@ -6,7 +6,7 @@ import pickle as p
 
 from tqdm import tqdm
 
-from data import setup_fit_tokenizer, get_labels
+from toxic_text.data.load import setup_fit_tokenizer, get_labels
 from keras.preprocessing.sequence import pad_sequences
 from nltk.tokenize import sent_tokenize, word_tokenize
 from nltk.corpus import stopwords

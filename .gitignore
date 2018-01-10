@@ -6,3 +6,5 @@ dataset/
 logs/
 *.csv
 .ipynb_checkpoints/
+experiment_output/
+doc2vec/
