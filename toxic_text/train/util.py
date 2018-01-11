@@ -15,6 +15,7 @@ def build_base_arg_parser():
     argument_parser.add_argument('--patience', default=5, type=int)
     argument_parser.add_argument('--experiment-name')
     argument_parser.add_argument('--valid-split', default=.1, type=float)
+    argument_parser.add_argument('--ensemble-dir')
 
     return argument_parser
 

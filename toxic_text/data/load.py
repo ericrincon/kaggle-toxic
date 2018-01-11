@@ -81,7 +81,7 @@ def create_submission(prob_predictions_df, test_data, filepath='submission.csv')
     columns.extend(TARGET_NAMES)
     preds_df.columns = columns
 
-    preds_df.to_csv(filepath, index=False)
+    return preds_df
 
 
 def setup_fit_tokenizer(texts, max_words=25000):

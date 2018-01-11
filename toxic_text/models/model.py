@@ -110,31 +110,16 @@ def _build_model(model_input,  model_outputs):
     return model
 
 
-def build_multi_head_model(model, vocab_size, vector_dim, input_length, model_args=None,
-                           embedding_matrix=None):
-    """
 
-    :param model:
+def build_single_head_model_output(model, name, l2=0.0001):
+    """
+    Creates the output for models that is 6 sigmoid neurons
+    :param model: a keras model )
+    :param name: name of the model output
     :return:
     """
-
-    if not model_args:
-        model_args = {}
-
-    model_input = Input(shape=(input_length,), dtype='int32', name='input')
-
-    model_inputs = build_model_input(model_input, vocab_size, vector_dim,
-                                     input_length, embedding_matrix=embedding_matrix)
-
-    model = model(model_inputs, **model_args)
-    model_outputs = build_multi_head_model_output(model)
-
-    return _build_model(model_input, model_outputs)
-
-
-def build_single_head_model_output(model, name):
     return Dense(6, activation='sigmoid', name=name,
-                 kernel_regularizer=regularizers.l2(0.001))(model)
+                 kernel_regularizer=regularizers.l2(l2))(model)
 
 
 def build_single_head_model(model, vocab_size, vector_dim, input_length, name,
