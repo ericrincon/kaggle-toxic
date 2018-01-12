@@ -73,8 +73,8 @@ def setup_fit_tokenizer(texts, max_words=25000):
 
     return tokenizer
 
-def load_setup_fit_tokenizer(texts, seq_length):
-    tokenizer = setup_fit_tokenizer(texts)
+def load_setup_fit_tokenizer(texts, seq_length, max_words=25000):
+    tokenizer = setup_fit_tokenizer(texts, max_words=max_words)
 
     examples = tokenizer.texts_to_sequences(texts)
     examples = pad_sequences(examples, seq_length)

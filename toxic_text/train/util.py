@@ -16,6 +16,7 @@ def build_base_arg_parser():
     argument_parser.add_argument('--experiment-name')
     argument_parser.add_argument('--valid-split', default=.1, type=float)
     argument_parser.add_argument('--ensemble-dir')
+    argument_parser.add_argument('--max-words', default=50000, type=int)
 
     return argument_parser
 

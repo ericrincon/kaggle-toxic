@@ -20,10 +20,6 @@ from toxic_text.train.util import get_experiment_name
 from gensim.models import KeyedVectors
 
 
-def get_steps_per_epoch(batch_size):
-    return int(24166 / batch_size)
-
-
 def balanced_fit(x, y, batch_size, class_name=None):
     undersample_class = {
         'toxic': 1,
@@ -101,7 +97,7 @@ def run_experiment(args, model=None, load_train_data=None, load_test_data=None):
         x_train, y_train, vocab_size = load_train_data(args.train)
     else:
         texts, y_train = get_training_data(args.train)
-        tokenizer, x_train = load_setup_fit_tokenizer(texts, args.seq_length)
+        tokenizer, x_train = load_setup_fit_tokenizer(texts, args.seq_length, args.max_words)
         vocab_size = len(tokenizer.word_index)
 
     if args.word2vec:

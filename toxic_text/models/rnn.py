@@ -137,7 +137,7 @@ def clstm(model_input, rnn_units=50, nb_filters=50, embedding_dropout=0.1, outpu
     else:
         # If no filter sizes are passed than only a filter size of 3 will be used
         if not filter_sizes:
-            filter_sizes = [3]
+            filter_sizes = [3, 4]
 
         features = []
 
@@ -152,7 +152,7 @@ def clstm(model_input, rnn_units=50, nb_filters=50, embedding_dropout=0.1, outpu
         else:
             conv_features = features[0]
 
-        conv_features = Reshape((len(filter_sizes), model_input.shape[1] * nb_filters))(conv_features)
+        conv_features = Reshape((len(filter_sizes), int(model_input.shape[1]) * nb_filters))(conv_features)
 
     gru = Bidirectional(CuDNNLSTM(rnn_units, return_sequences=True))(conv_features)
     max_pool = GlobalMaxPool1D()(gru)
