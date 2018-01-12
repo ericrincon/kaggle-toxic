@@ -8,3 +8,6 @@ logs/
 .ipynb_checkpoints/
 experiment_output/
 doc2vec/
+ensembles/
+GloVe/
+glove/

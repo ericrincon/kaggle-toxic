@@ -143,8 +143,9 @@ def run_experiment(args, model=None, load_train_data=None, load_test_data=None):
 
     preds = model.predict(x_test)
     preds_df = pd.DataFrame(preds)
+    submission_csv = create_submission(preds_df, test_data)
 
-    preds_df.to_csv('{}/submission.csv'.format(experiment_name), index=False)
+    submission_csv.to_csv('{}/submission.csv'.format(experiment_name), index=False)
 
     # Output the results to an ensemble folder
 
@@ -154,7 +155,7 @@ def run_experiment(args, model=None, load_train_data=None, load_test_data=None):
             print('The dir {} doesn\'t exist!\nCreating the dir...'.format(args.ensemble_dir))
             os.makedirs(args.ensemble_dir)
 
-        preds_df.to_csv('{}/{}_submission.csv'.format(args.ensemble_dir, args.experiment_name), index=False)
+        submission_csv.to_csv('{}/{}_submission.csv'.format(args.ensemble_dir, args.experiment_name), index=False)
 
 
 

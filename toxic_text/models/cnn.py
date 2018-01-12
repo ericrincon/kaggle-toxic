@@ -59,7 +59,7 @@ def dpcnn_convolution_block(conv_input, filter_size, nb_filters, pool=True,
 
 
 def deep_pyramid(model_input, nb_convoultion_blocks=5,
-                 nb_filters=300, filter_size=3, dropout=0.5):
+                 nb_filters=128, filter_size=3, dropout=0.5):
     """
     http://ai.tencent.com/ailab/media/publications/ACL3-Brady.pdf
 

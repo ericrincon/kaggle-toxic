@@ -45,25 +45,8 @@ def get_train_valid_split(x, y):
     train, test = [(train, test) for train, test in sss.split(X=x, y=y)][0]
 
     return x[train], x[test], [_y[train] for _y in y], [_y[test] for _y in y]
-    # train_index = []
-    # valid_index = []
-    #
-    # for _y in y:
-    #     train_split, valid_split = [(train, test) for train, test in sss.split(X=x,
-    #                                                                        y=_y)][0]
-    #     train_index.extend(train_split.tolist())
-    #     valid_index.extend(valid_split.tolist())
-    #
-    # # train_index = np.concatenate(train_index)
-    # # valid_index = np.concatenate(valid_index)
-    # train_index = list(set(train_index))
-    # valid_index = list(set(valid_index))
-    #
-    # return x[train_index], x[valid_index], \
-    #        [_y[train_index] for _y in y], [_y[valid_index] for _y in y]
 
-
-def create_submission(prob_predictions_df, test_data, filepath='submission.csv'):
+def create_submission(prob_predictions_df, test_data):
     """
     Simple function that creates a pandas dataframe from predictions and
     creates a csv file for submission to kaggle

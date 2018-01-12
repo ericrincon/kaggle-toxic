@@ -97,14 +97,15 @@ def get_model(model_name):
 
 def _build_model(model_input,  model_outputs):
     """
-
-    :param model:
+    Sets the optimizer, inputs and outputs of the model, and returns the compiled model
+    :param model_input:
     :return:
     """
 
     adam = Adam(lr=.001)
     model = Model(inputs=model_input, outputs=model_outputs)
 
+    # All of the models right now have 6 sigmoid outputs so binary cross entropy
     model.compile(optimizer=adam, loss='binary_crossentropy', metrics=['accuracy'])
 
     return model
