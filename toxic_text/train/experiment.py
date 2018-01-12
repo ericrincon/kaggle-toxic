@@ -95,7 +95,7 @@ def run_experiment(args, model=None, load_train_data=None, load_test_data=None):
 
     if model is None:
         model = args.model
-    model = get_model(model)
+    model_builder = get_model(model)
 
     if load_train_data:
         x_train, y_train, vocab_size = load_train_data(args.train)
@@ -128,7 +128,7 @@ def run_experiment(args, model=None, load_train_data=None, load_test_data=None):
         x_test = pad_sequences(x_test, args.seq_length)
 
 
-    model = build_single_head_model(model, vocab_size, embedding_dim, args.seq_length,
+    model = build_single_head_model(model_builder, vocab_size, embedding_dim, args.seq_length,
                                     name=args.model, embedding_matrix=embedding_matrix)
     log_dir = 'logs/{}'.format(args.experiment_name)
 
@@ -147,7 +147,7 @@ def run_experiment(args, model=None, load_train_data=None, load_test_data=None):
     print('--------------------------------------------------')
     print('Creating new model and retraining on all data...')
 
-    model = build_single_head_model(model, vocab_size, embedding_dim, args.seq_length,
+    model = build_single_head_model(model_builder, vocab_size, embedding_dim, args.seq_length,
                                     name=args.model, embedding_matrix=embedding_matrix)
     history = model.fit(x_train, y_train, args.batch_size,
                         verbose=1, epochs=early_stop_nb_epochs, callbacks=callbacks, validation_split=0)
