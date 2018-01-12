@@ -138,8 +138,19 @@ def run_experiment(args, model=None, load_train_data=None, load_test_data=None):
     callbacks = setup_callbacks(log_dir=log_dir, patience=args.patience,
                                 filepath='{}/model_checkpoint'.format(experiment_name))
 
-    model.fit(x_train, y_train, args.batch_size,
+    history = model.fit(x_train, y_train, args.batch_size,
                     verbose=1, epochs=args.epochs, callbacks=callbacks, validation_split=args.valid_split)
+
+    # Refit model with all the data at that epoch
+    early_stop_nb_epochs = len(history.history['loss'])
+
+    print('--------------------------------------------------')
+    print('Creating new model and retraining on all data...')
+
+    model = build_single_head_model(model, vocab_size, embedding_dim, args.seq_length,
+                                    name=args.model, embedding_matrix=embedding_matrix)
+    history = model.fit(x_train, y_train, args.batch_size,
+                        verbose=1, epochs=early_stop_nb_epochs, callbacks=callbacks, validation_split=0)
 
     preds = model.predict(x_test)
     preds_df = pd.DataFrame(preds)
