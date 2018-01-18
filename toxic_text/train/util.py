@@ -17,6 +17,11 @@ def build_base_arg_parser():
     argument_parser.add_argument('--valid-split', default=.1, type=float)
     argument_parser.add_argument('--ensemble-dir')
     argument_parser.add_argument('--max-words', default=50000, type=int)
+    argument_parser.add_argument('--use-lda', type=int, default=0)
+    argument_parser.add_argument('--nb-topics', default=51, type=int)
+    argument_parser.add_argument('--lda-train', default='lda_features/train.npy')
+    argument_parser.add_argument('--lda-test', default='lda_features/test.npy')
+    argument_parser.add_argument('--lda-dim', type=int, default=25)
 
     return argument_parser
 

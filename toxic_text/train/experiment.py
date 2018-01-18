@@ -123,9 +123,20 @@ def run_experiment(args, model=None, load_train_data=None, load_test_data=None):
         x_test = tokenizer.texts_to_sequences(test_texts)
         x_test = pad_sequences(x_test, args.seq_length)
 
+    if args.use_lda:
+        lda = {
+            'nb_topics': args.nb_topics,
+            'embedding_dim': args.lda_dim,
+            'max_topics': 10
+        }
+        x_train_lda = np.load(open(args.lda_train, 'rb'))
+
+    else:
+        lda = None
 
     model = build_single_head_model(model_builder, vocab_size, embedding_dim, args.seq_length,
-                                    name=args.model, embedding_matrix=embedding_matrix)
+                                    name=args.model, embedding_matrix=embedding_matrix,
+                                    lda=lda)
     log_dir = 'logs/{}'.format(args.experiment_name)
 
     if not os.path.exists(log_dir):
@@ -133,6 +144,9 @@ def run_experiment(args, model=None, load_train_data=None, load_test_data=None):
 
     callbacks = setup_callbacks(log_dir=log_dir, patience=args.patience,
                                 filepath='{}/model_checkpoint'.format(experiment_name))
+
+    if lda:
+        x_train = [x_train, x_train_lda]
 
     history = model.fit(x_train, y_train, args.batch_size,
                     verbose=1, epochs=args.epochs, callbacks=callbacks, validation_split=args.valid_split)
@@ -144,10 +158,12 @@ def run_experiment(args, model=None, load_train_data=None, load_test_data=None):
     print('Creating new model and retraining on all data...')
 
     model = build_single_head_model(model_builder, vocab_size, embedding_dim, args.seq_length,
-                                    name=args.model, embedding_matrix=embedding_matrix)
+                                    name=args.model, embedding_matrix=embedding_matrix, lda=lda)
     history = model.fit(x_train, y_train, args.batch_size,
                         verbose=1, epochs=early_stop_nb_epochs, callbacks=callbacks, validation_split=0)
-
+    if args.lda:
+        x_test_lda = np.load(open(args.lda_test, 'rb'))
+        x_test = [x_test, x_test_lda]
     preds = model.predict(x_test)
     preds_df = pd.DataFrame(preds)
     submission_csv = create_submission(preds_df, test_data)

@@ -4,13 +4,15 @@
 import numpy as np
 
 from keras.models import Input, Model
-from keras.layers import Dense, Embedding, TimeDistributed
+from keras.layers import Dense, Embedding, TimeDistributed, Flatten, Concatenate
+from keras.optimizers import Adam
+from keras import regularizers
 
 from toxic_text.models.cnn import sentence, deep_pyramid
 from toxic_text.models.rnn import simple_birnn, hierarchical_attention_network, clstm
 from toxic_text.models.nn import fast_text, logistic, d2v
-from keras.optimizers import Adam
-from keras import regularizers
+
+
 
 _MODELS = {
     "sentence": sentence,
@@ -24,6 +26,20 @@ _MODELS = {
 }
 
 
+
+def build_topic_embedding_layer(nb_topics, embedding_dim, max_topics):
+    """
+    Easy helper function for building the embedding layer for topic features
+    :param nb_topics:
+    :param embedding_dim:
+    :param max_topics:
+    :return:
+    """
+
+    lda_input = Input(shape=(max_topics,), dtype='int32', name='topic_embeddings')
+    lda_embeddings = Embedding(input_dim=nb_topics, output_dim=embedding_dim,
+                               input_length=max_topics)(lda_input)
+    return Flatten()(lda_embeddings), lda_input
 
 def build_embedding_matrix(tokenizer, word2vec):
     """
@@ -124,7 +140,7 @@ def build_single_head_model_output(model, name, l2=0.0001):
 
 
 def build_single_head_model(model, vocab_size, vector_dim, input_length, name,
-                            embedding_matrix=None):
+                            embedding_matrix=None, lda=None):
     model_input = Input(shape=(input_length,), dtype='int32', name='input')
 
     model_inputs = build_model_input(model_input, vocab_size, vector_dim,
@@ -132,6 +148,12 @@ def build_single_head_model(model, vocab_size, vector_dim, input_length, name,
                                      time_distributed=False)
 
     model = model(model_inputs)
+
+    if lda:
+        lda_features, lda_input = build_topic_embedding_layer(**lda)
+        model = Concatenate()([model, lda_features])
+        model_input = [model_input, lda_input]
+
     model_outputs = build_single_head_model_output(model, name)
 
     return _build_model(model_input, model_outputs)

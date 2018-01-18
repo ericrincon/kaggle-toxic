@@ -11,3 +11,5 @@ doc2vec/
 ensembles/
 GloVe/
 glove/
+lda_features/
+lda_models/
