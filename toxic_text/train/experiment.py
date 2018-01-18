@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import os.path
+from operator import itemgetter
 
 from toxic_text.test.evaluate import TARGET_NAMES
 
@@ -152,7 +153,7 @@ def run_experiment(args, model=None, load_train_data=None, load_test_data=None):
                     verbose=1, epochs=args.epochs, callbacks=callbacks, validation_split=args.valid_split)
 
     # Refit model with all the data at that epoch
-    early_stop_nb_epochs = len(history.history['loss'])
+    early_stop_nb_epochs = min(enumerate(history.history['val_loss']), key=itemgetter(1))[0]
 
     print('--------------------------------------------------')
     print('Creating new model and retraining on all data...')
@@ -160,8 +161,9 @@ def run_experiment(args, model=None, load_train_data=None, load_test_data=None):
     model = build_single_head_model(model_builder, vocab_size, embedding_dim, args.seq_length,
                                     name=args.model, embedding_matrix=embedding_matrix, lda=lda)
     history = model.fit(x_train, y_train, args.batch_size,
-                        verbose=1, epochs=early_stop_nb_epochs, callbacks=callbacks, validation_split=0)
-    if args.lda:
+                        verbose=1, epochs=early_stop_nb_epochs, callbacks=callbacks
+                        , validation_split=0)
+    if lda:
         x_test_lda = np.load(open(args.lda_test, 'rb'))
         x_test = [x_test, x_test_lda]
     preds = model.predict(x_test)
