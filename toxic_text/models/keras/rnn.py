@@ -8,7 +8,7 @@ from keras.layers import Conv1D, Concatenate, Flatten, Dropout, \
 
 from keras import regularizers
 
-from toxic_text.models.cnn import dpcnn_convolution_block
+from toxic_text.models.keras.cnn import dpcnn_convolution_block
 
 """
 Dict mapping RNN names to the corresponding Keras layer

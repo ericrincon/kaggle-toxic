@@ -8,9 +8,9 @@ from keras.layers import Dense, Embedding, TimeDistributed, Flatten, Concatenate
 from keras.optimizers import Adam
 from keras import regularizers
 
-from toxic_text.models.cnn import sentence, deep_pyramid
-from toxic_text.models.rnn import simple_birnn, hierarchical_attention_network, clstm
-from toxic_text.models.nn import fast_text, logistic, d2v
+from toxic_text.models.keras.cnn import sentence, deep_pyramid
+from toxic_text.models.keras.rnn import simple_birnn, hierarchical_attention_network, clstm
+from toxic_text.models.keras.nn import fast_text, logistic, d2v
 
 
 

@@ -2,12 +2,12 @@ import pandas as pd
 import os.path
 import pickle as p
 
-from toxic_text.models.model import get_model
+from toxic_text.models.keras.model import get_model
 
 from toxic_text.train.util import build_base_arg_parser
 from toxic.train.experiment import setup_callbacks
 from toxic_text.data.load import create_submission, load_train_hdf5, load_test_hdf5
-from toxic_text.models.model import build_embedding_matrix, \
+from toxic_text.models.keras.model import build_embedding_matrix, \
     build_time_dist_model
 
 from gensim.models import KeyedVectors

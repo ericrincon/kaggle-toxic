@@ -1,6 +1,6 @@
 import pandas as pd
 import os.path
-from toxic_text.models.model import get_model
+from toxic_text.models.keras.model import get_model
 
 from gensim.models.word2vec import Word2Vec
 
@@ -10,7 +10,7 @@ from toxic_text.data.load import get_training_data, get_train_valid_split, creat
     setup_fit_tokenizer, preds_to_df
 from keras.preprocessing.sequence import pad_sequences
 
-from toxic_text.models.model import build_embedding_matrix, build_single_head_model
+from toxic_text.models.keras.model import build_embedding_matrix, build_single_head_model
 
 
 def main():

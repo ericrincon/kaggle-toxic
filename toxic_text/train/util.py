@@ -12,7 +12,7 @@ def build_base_arg_parser():
     argument_parser.add_argument('--embedding-dim', default=64, type=int)
     argument_parser.add_argument('--batch-size', default=64, type=int)
     argument_parser.add_argument('--balanced', default=0, type=int)
-    argument_parser.add_argument('--patience', default=5, type=int)
+    argument_parser.add_argument('--patience', default=2, type=int)
     argument_parser.add_argument('--experiment-name')
     argument_parser.add_argument('--valid-split', default=.1, type=float)
     argument_parser.add_argument('--ensemble-dir')
@@ -22,6 +22,7 @@ def build_base_arg_parser():
     argument_parser.add_argument('--lda-train', default='lda_features/train.npy')
     argument_parser.add_argument('--lda-test', default='lda_features/test.npy')
     argument_parser.add_argument('--lda-dim', type=int, default=25)
+    argument_parser.add_argument('--cv', type=int, default=0)
 
     return argument_parser
 
