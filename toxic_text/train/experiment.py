@@ -153,7 +153,7 @@ def run_experiment(args, model=None, load_train_data=None, load_test_data=None):
                     verbose=1, epochs=args.epochs, callbacks=callbacks, validation_split=args.valid_split)
 
     # Refit model with all the data at that epoch
-    early_stop_nb_epochs = min(enumerate(history.history['val_loss']), key=itemgetter(1))[0]
+    early_stop_nb_epochs = min(enumerate(history.history['val_loss']), key=itemgetter(1))[0] + 1
 
     print('--------------------------------------------------')
     print('Creating new model and retraining on all data...')

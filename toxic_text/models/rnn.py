@@ -1,5 +1,5 @@
 from keras.layers import LSTM, Bidirectional, GlobalMaxPool1D, Dense, GRU, \
-    TimeDistributed, CuDNNGRU, CuDNNLSTM
+    TimeDistributed, CuDNNGRU, CuDNNLSTM, GlobalAveragePooling1D, PReLU
 from keras import backend as K
 from keras.engine.topology import Layer
 
@@ -35,14 +35,23 @@ def get_rnn_name(rnn_name):
 
 
 
-def simple_birnn(model_input, units=50, dropout=0.5, embedding_dropout=0.1):
+def simple_birnn(model_input, units=50, dropout=0.5, embedding_dropout=0.1,
+                 prelu=True):
     if embedding_dropout:
         model_input = Dropout(embedding_dropout)(model_input)
 
     bi_rnn = Bidirectional(CuDNNLSTM(units, return_sequences=True))(model_input)
     max_pool = GlobalMaxPool1D()(bi_rnn)
-    dropout_one = Dropout(dropout)(max_pool)
-    dense = Dense(units, activation="relu")(dropout_one)
+    average_pool = GlobalAveragePooling1D()(bi_rnn)
+    concat = Concatenate()([max_pool, average_pool])
+    dropout_one = Dropout(dropout)(concat)
+
+    activation = None if prelu else 'relu'
+    dense = Dense(units, activation=activation)(dropout_one)
+
+    if prelu:
+        dense = PReLU()(dense)
+
     dropout_dense = Dropout(dropout)(dense)
 
     return dropout_dense
@@ -106,7 +115,7 @@ def hierarchical_attention_network(model_input, units=50, rnn_type='gru'):
 
 
 def clstm(model_input, rnn_units=50, nb_filters=50, embedding_dropout=0.1, output_dropout=0.5,
-          dpcnn=False, filter_sizes=None):
+          dpcnn=False, filter_sizes=None, prelu=True):
     """
     https://arxiv.org/pdf/1511.08630.pdf
 
@@ -154,9 +163,17 @@ def clstm(model_input, rnn_units=50, nb_filters=50, embedding_dropout=0.1, outpu
 
         conv_features = Reshape((len(filter_sizes), int(model_input.shape[1]) * nb_filters))(conv_features)
 
-    gru = Bidirectional(CuDNNLSTM(rnn_units, return_sequences=True))(conv_features)
-    max_pool = GlobalMaxPool1D()(gru)
-    output = Dense(50, activation='relu')(max_pool)
+    bi_rnn = Bidirectional(CuDNNLSTM(rnn_units, return_sequences=True))(conv_features)
+    max_pool = GlobalMaxPool1D()(bi_rnn)
+    average_pool = GlobalAveragePooling1D()(bi_rnn)
+    concat = Concatenate()([max_pool, average_pool])
+
+    activation = None if prelu else 'relu'
+
+    output = Dense(50, activation=activation)(concat)
+
+    if prelu:
+        output = PReLU()(output)
 
     if output_dropout:
         output = Dropout(output_dropout)(output)

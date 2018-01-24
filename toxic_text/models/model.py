@@ -25,7 +25,8 @@ _MODELS = {
     'd2v': d2v
 }
 
-
+def get_all_models():
+    return list(_MODELS.keys())
 
 def build_topic_embedding_layer(nb_topics, embedding_dim, max_topics):
     """
