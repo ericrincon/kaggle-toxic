@@ -23,6 +23,8 @@ from gensim.models import KeyedVectors
 from sklearn.model_selection import KFold
 from sklearn.metrics import log_loss
 
+from keras import backend as K
+
 def balanced_fit(x, y, batch_size, class_name=None):
     undersample_class = {
         'toxic': 1,
@@ -190,6 +192,7 @@ def run_experiment(args, model=None, load_train_data=None, load_test_data=None):
 
         print('--------------------------------------------------')
         print('Creating new model and retraining on all data...')
+        del model
 
         model = build_single_head_model(model_builder, vocab_size, embedding_dim, args.seq_length,
                                         name=args.model, embedding_matrix=embedding_matrix, lda=lda)
@@ -198,6 +201,8 @@ def run_experiment(args, model=None, load_train_data=None, load_test_data=None):
                             , validation_split=0)
 
         preds = model.predict(X_test)
+
+        K.clear_session()
 
         return preds
 

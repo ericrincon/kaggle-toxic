@@ -146,7 +146,7 @@ def clstm(model_input, rnn_units=50, nb_filters=50, embedding_dropout=0.1, outpu
     else:
         # If no filter sizes are passed than only a filter size of 3 will be used
         if not filter_sizes:
-            filter_sizes = [3, 4]
+            filter_sizes = [2, 3]
 
         features = []
 

@@ -1,11 +1,11 @@
 # Trains a series of different models and outputs them to one file
 
 
-WORD_VECTOR_FILE=/home/eric/Documents/word_vectors/GloVe/glove_6B_300d.vec
-TRAIN_FILE=dataset/train.csv
-TEST_FILE=dataset/test.csv
+WORD_VECTOR_FILE=/home/eric/Documents/word_vectors/GloVe/glove.vec
+TRAIN_FILE=dataset/preprocessed_train.csv
+TEST_FILE=dataset/preprocessed_test.csv
 SEQ_LENGTH=150
-ENSEMBLE_DIR=enesmbles/300_glove_6b_ensemble_lda_avg
+ENSEMBLE_DIR=enesmbles/128_glove_6b_ensemble_lda_avg
 LDA_DIM=25
 NUMBER_OF_EPOCHS=10
 
