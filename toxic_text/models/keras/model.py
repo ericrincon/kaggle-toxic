@@ -4,15 +4,14 @@
 import numpy as np
 
 from keras.models import Input, Model
-from keras.layers import Dense, Embedding, TimeDistributed, Flatten, Concatenate
+from keras.layers import Dense, Embedding, TimeDistributed, Flatten, Concatenate, \
+    GlobalAveragePooling1D
 from keras.optimizers import Adam
 from keras import regularizers
 
 from toxic_text.models.keras.cnn import sentence, deep_pyramid
 from toxic_text.models.keras.rnn import simple_birnn, hierarchical_attention_network, clstm
 from toxic_text.models.keras.nn import fast_text, logistic, d2v
-
-
 
 _MODELS = {
     "sentence": sentence,
@@ -25,10 +24,12 @@ _MODELS = {
     'd2v': d2v
 }
 
+
 def get_all_models():
     return list(_MODELS.keys())
 
-def build_topic_embedding_layer(nb_topics, embedding_dim, max_topics):
+
+def build_topic_embedding_layer(nb_topics, embedding_dim, max_topics, average=False):
     """
     Easy helper function for building the embedding layer for topic features
     :param nb_topics:
@@ -40,7 +41,9 @@ def build_topic_embedding_layer(nb_topics, embedding_dim, max_topics):
     lda_input = Input(shape=(max_topics,), dtype='int32', name='topic_embeddings')
     lda_embeddings = Embedding(input_dim=nb_topics, output_dim=embedding_dim,
                                input_length=max_topics)(lda_input)
-    return Flatten()(lda_embeddings), lda_input
+    return GlobalAveragePooling1D()(lda_embeddings) if average \
+               else Flatten()(lda_embeddings), lda_input
+
 
 def build_embedding_matrix(tokenizer, word2vec):
     """
@@ -65,6 +68,25 @@ def build_embedding_matrix(tokenizer, word2vec):
     return embedding_matrix
 
 
+def build_pos_embedding_layer(max_pos_tags, nb_pos_tags, embedding_dim):
+    """
+    Embedding matrix for part of speech tags. The input will be a sequence
+    of integeres mapping pos tags to vectors
+
+    :param max_pos_tags: note this should be the same as the maximum number of
+    words
+    :param nb_pos_tags: the total unique number of pos tags
+    :param embedding_dim: the size of the embedding vector for the pos tags
+    :return: the embedding vectors as a tensor resulting from the input
+    """
+
+    pos_tags = Input(shape=(max_pos_tags,), dtype='int32', name='pos_embeddings')
+    pos_embeddings = Embedding(input_dim=nb_pos_tags, output_dim=embedding_dim,
+                               input_length=max_pos_tags)(pos_tags)
+
+    return pos_embeddings
+
+
 def build_model_input(model_input, vocab_size, embedding_dim, input_length,
                       embedding_matrix=None, time_distributed=True, trainable=True):
     """
@@ -78,13 +100,13 @@ def build_model_input(model_input, vocab_size, embedding_dim, input_length,
         "trainable": trainable
     }
 
-
     if embedding_matrix is not None:
         kwargs['weights'] = [embedding_matrix]
 
     embedding = Embedding(**kwargs)
 
     return TimeDistributed(embedding)(model_input) if time_distributed else embedding(model_input)
+
 
 def build_multi_head_model_output(model):
     """
@@ -112,7 +134,7 @@ def get_model(model_name):
     return _MODELS[model_name]
 
 
-def _build_model(model_input,  model_outputs):
+def _build_model(model_input, model_outputs):
     """
     Sets the optimizer, inputs and outputs of the model, and returns the compiled model
     :param model_input:
@@ -126,7 +148,6 @@ def _build_model(model_input,  model_outputs):
     model.compile(optimizer=adam, loss='binary_crossentropy', metrics=['accuracy'])
 
     return model
-
 
 
 def build_single_head_model_output(model, name, l2=0.0001):

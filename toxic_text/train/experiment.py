@@ -21,9 +21,10 @@ from toxic_text.train.util import get_experiment_name
 from gensim.models import KeyedVectors
 
 from sklearn.model_selection import KFold
-from sklearn.metrics import log_loss
+from sklearn.metrics import log_loss, roc_auc_score
 
 from keras import backend as K
+
 
 def balanced_fit(x, y, batch_size, class_name=None):
     undersample_class = {
@@ -155,7 +156,7 @@ def run_experiment(args, model=None, load_train_data=None, load_test_data=None):
 
     x_train, y_train, tokenizer, vocab_size = setup_training_data(args, load_train_data=load_train_data)
 
-    embedding_matrix, embedding_dim  = create_embedding_matrix(args, tokenizer)
+    embedding_matrix, embedding_dim = create_embedding_matrix(args, tokenizer)
 
     lda = setup_lda_parameters(args)
 
@@ -177,7 +178,6 @@ def run_experiment(args, model=None, load_train_data=None, load_test_data=None):
 
         x_test_lda = np.load(open(args.lda_test, 'rb'))
         x_test = [x_test, x_test_lda]
-
 
     def train(X_train, Y_train, X_test):
         model = build_single_head_model(model_builder, vocab_size, embedding_dim, args.seq_length,
@@ -206,6 +206,35 @@ def run_experiment(args, model=None, load_train_data=None, load_test_data=None):
 
         return preds
 
+
+    def train_seperate():
+        model = build_single_head_model(model_builder, vocab_size, embedding_dim, args.seq_length,
+                                        name=args.model, embedding_matrix=embedding_matrix,
+                                        lda=lda)
+
+        history = model.fit(X_train, Y_train, args.batch_size,
+                            verbose=1, epochs=args.epochs, callbacks=callbacks, validation_split=args.valid_split)
+
+        # Refit model with all the data at that epoch
+        early_stop_nb_epochs = min(enumerate(history.history['val_loss']), key=itemgetter(1))[0] + 1
+
+        print('--------------------------------------------------')
+        print('Creating new model and retraining on all data...')
+        del model
+
+        model = build_single_head_model(model_builder, vocab_size, embedding_dim, args.seq_length,
+                                        name=args.model, embedding_matrix=embedding_matrix, lda=lda)
+        history = model.fit(X_train, Y_train, args.batch_size,
+                            verbose=1, epochs=early_stop_nb_epochs, callbacks=callbacks
+                            , validation_split=0)
+
+        preds = model.predict(X_test)
+
+        K.clear_session()
+
+        return preds
+
+
     if args.cv:
         """
         Here we use the training data as run 5 fold cross validation to test different models 
@@ -221,6 +250,7 @@ def run_experiment(args, model=None, load_train_data=None, load_test_data=None):
             return X.pop(0) if len(X) == 0 else X
 
         log_loss_scores = []
+        roc_auc_scores = []
 
         # Use the training data for the cross validation
         # so the training data will be split into test and training
@@ -230,19 +260,25 @@ def run_experiment(args, model=None, load_train_data=None, load_test_data=None):
 
             preds = train(X_train, Y_train, X_test)
 
-            log_loss_score = float(sum(map(lambda t: log_loss(t[0], t[1]), [(Y_test[:, i], preds[:, i]) for i in range(Y_test.shape[1])])))\
+            log_loss_score = float(
+                sum(map(lambda t: log_loss(t[0], t[1]), [(Y_test[:, i], preds[:, i]) for i in range(Y_test.shape[1])]))) \
+                             / Y_test.shape[1]
+            _roc_auc_score = float(
+                sum(map(lambda t: roc_auc_score(t[0], t[1]), [(Y_test[:, i], preds[:, i]) for i in range(Y_test.shape[1])]))) \
                              / Y_test.shape[1]
 
             log_loss_scores.append(log_loss_score)
+            roc_auc_scores.append(_roc_auc_score)
 
         average_log_loss_score = sum(log_loss_scores) / len(log_loss_scores)
+        average_roc_auc_score = sum(roc_auc_scores) / len(roc_auc_scores)
 
-        print('5 Fold Log loss score: {}'.format(average_log_loss_score))
+        print('5 Fold Log loss score: {} | auc_score: {}'.format(average_log_loss_score,
+                                                                 average_roc_auc_score))
 
     else:
         preds = train(x_train, y_train, x_test)
         output_results(args, preds, test_data)
-
 
 
 def output_results(args, preds, test_data):
@@ -289,5 +325,3 @@ def output_to_ensemble(submission_csv, ensemble_dir, experiment_name):
         os.makedirs(ensemble_dir)
 
     submission_csv.to_csv('{}/{}_submission.csv'.format(ensemble_dir, experiment_name), index=False)
-
-

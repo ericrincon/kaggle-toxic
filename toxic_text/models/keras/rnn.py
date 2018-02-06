@@ -21,42 +21,6 @@ _RNNS = {
 }
 
 
-def get_rnn_name(rnn_name):
-    """
-    Simple function for getting different RNN variants
-
-    :param rnn_name: the name of the RNN layer
-    :return: the corresponding Keras RNN layer
-    """
-    if rnn_name.upper() in _RNNS:
-        return _RNNS[rnn_name]
-    else:
-        raise ValueError('The RNN type {} is not defined!'.format(rnn_name))
-
-
-
-def simple_birnn(model_input, units=50, dropout=0.5, embedding_dropout=0.1,
-                 prelu=True):
-    if embedding_dropout:
-        model_input = Dropout(embedding_dropout)(model_input)
-
-    bi_rnn = Bidirectional(CuDNNLSTM(units, return_sequences=True))(model_input)
-    max_pool = GlobalMaxPool1D()(bi_rnn)
-    average_pool = GlobalAveragePooling1D()(bi_rnn)
-    concat = Concatenate()([max_pool, average_pool])
-    dropout_one = Dropout(dropout)(concat)
-
-    activation = None if prelu else 'relu'
-    dense = Dense(units, activation=activation)(dropout_one)
-
-    if prelu:
-        dense = PReLU()(dense)
-
-    dropout_dense = Dropout(dropout)(dense)
-
-    return dropout_dense
-
-
 class Attention(Layer):
     def __init__(self, **kwargs):
         # self.output_dim = output_dim
@@ -94,8 +58,62 @@ class Attention(Layer):
         return (None, input_shape[-1])
 
 
-def hierarchical_attention_network(model_input, units=50, rnn_type='gru'):
+def get_rnn_name(rnn_name):
+    """
+    Simple function for getting different RNN variants
 
+    :param rnn_name: the name of the RNN layer
+    :return: the corresponding Keras RNN layer
+    """
+    if rnn_name.upper() in _RNNS:
+        return _RNNS[rnn_name]
+    else:
+        raise ValueError('The RNN type {} is not defined!'.format(rnn_name))
+
+
+def simple_birnn(model_input, pos_tag_embeddings=None, units=50, dropout=0.5, embedding_dropout=0.1,
+                 prelu=True, rnn_cell_name='CLSTM'):
+    """
+
+    :param model_input: embedding tensor of the input sequence
+    :param pos_tag_embeddings:
+    :param units:
+    :param dropout:
+    :param embedding_dropout:
+    :param prelu:
+    :param rnn_cell_name:
+    :return:
+    """
+
+    if pos_tag_embeddings:
+        model_input = Concatenate()([model_input, pos_tag_embeddings])
+
+    if embedding_dropout:
+        model_input = Dropout(embedding_dropout)(model_input)
+
+    rnn_cell = get_rnn_name(rnn_cell_name)
+
+    bi_rnn = Bidirectional(rnn_cell(units, return_sequences=True))(model_input)
+    attention = Attention()(bi_rnn)
+
+    max_pool = GlobalMaxPool1D()(bi_rnn)
+    average_pool = GlobalAveragePooling1D()(bi_rnn)
+    concat = Concatenate()([max_pool, average_pool, attention])
+    dropout_one = Dropout(dropout)(concat)
+
+    activation = None if prelu else 'relu'
+
+    dense = Dense(units, activation=activation)(dropout_one)
+
+    if prelu:
+        dense = PReLU()(dense)
+
+    dropout_dense = Dropout(dropout)(dense)
+
+    return dropout_dense
+
+
+def hierarchical_attention_network(model_input, units=50, rnn_type='gru'):
     """
     http://www.cs.cmu.edu/~./hovy/papers/16HLT-hierarchical-attention-networks.pdf
     :return:
@@ -179,6 +197,3 @@ def clstm(model_input, rnn_units=50, nb_filters=50, embedding_dropout=0.1, outpu
         output = Dropout(output_dropout)(output)
 
     return output
-
-
-

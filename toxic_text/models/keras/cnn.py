@@ -4,6 +4,34 @@ from keras.layers import Conv1D, MaxPooling1D, Concatenate, Flatten, Dropout, \
 from keras import regularizers
 
 
+
+
+class BaseModel:
+    def __init__(self):
+        self.model = None
+
+    def build_input(self):
+        pass
+
+    def build_model(self):
+        pass
+
+    def train(self):
+        pass
+
+
+
+
+class VDCNN(BaseModel):
+    def __init__(self):
+        super(VDCNN, self).__init__()
+
+    def build_model():
+        pass
+
+
+
+
 def sentence(model_input, nb_filters=100, filter_sizes=None, dropout=0.5):
     """
 
@@ -12,7 +40,7 @@ def sentence(model_input, nb_filters=100, filter_sizes=None, dropout=0.5):
 
     # set up mutable data types
     if not filter_sizes:
-        filter_sizes = [2, 3, 4]
+        filter_sizes = [2, 3, 4, 5]
 
     features = []
 
@@ -43,7 +71,7 @@ def dpcnn_convolution_block(conv_input, filter_size, nb_filters, pool=True,
     """
 
     if pool:
-        conv_input = MaxPooling1D(pool_size=filter_size, strides=2)(conv_input)
+        conv_input = MaxPooling1D(pool_size=3, strides=2)(conv_input)
     shortcut = conv_input
 
     pre_activation_1 = Activation('relu')(conv_input)
@@ -58,7 +86,7 @@ def dpcnn_convolution_block(conv_input, filter_size, nb_filters, pool=True,
     return shortcut_connection
 
 
-def deep_pyramid(model_input, nb_convoultion_blocks=5,
+def deep_pyramid(model_input, nb_convoultion_blocks=6,
                  nb_filters=300, filter_size=3, dropout=0.5):
     """
     http://ai.tencent.com/ailab/media/publications/ACL3-Brady.pdf

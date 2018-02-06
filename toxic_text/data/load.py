@@ -67,14 +67,14 @@ def create_submission(prob_predictions_df, test_data):
     return preds_df
 
 
-def setup_fit_tokenizer(texts, max_words=25000):
-    tokenizer = Tokenizer(num_words=max_words)
+def setup_fit_tokenizer(texts, max_words=25000, filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n'):
+    tokenizer = Tokenizer(num_words=max_words, filters=filters)
     tokenizer.fit_on_texts(texts)
 
     return tokenizer
 
 def load_setup_fit_tokenizer(texts, seq_length, max_words=25000):
-    tokenizer = setup_fit_tokenizer(texts, max_words=max_words)
+    tokenizer = setup_fit_tokenizer(texts, max_words=max_words, filters='')
 
     examples = tokenizer.texts_to_sequences(texts)
     examples = pad_sequences(examples, seq_length)
@@ -82,8 +82,8 @@ def load_setup_fit_tokenizer(texts, seq_length, max_words=25000):
     return tokenizer, examples
 
 
-def load_setup_fit_sent_tokenizer(texts, max_words, max_sentences=5):
-    tokenizer = setup_fit_tokenizer(texts)
+def load_setup_fit_sent_tokenizer(texts, max_words, filters, max_sentences=5):
+    tokenizer = setup_fit_tokenizer(texts, filters=filters)
 
     examples = np.zeros((texts.shape[0], max_sentences, max_words), dtype=np.int32)
 
