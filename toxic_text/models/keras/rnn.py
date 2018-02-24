@@ -9,6 +9,11 @@ from keras.layers import Conv1D, Concatenate, Flatten, Dropout, \
 from keras import regularizers
 
 from toxic_text.models.keras.cnn import dpcnn_convolution_block
+from toxic_text.features.stylometric import number_of_exclamations
+from keras.optimizers import Adam
+from keras import regularizers
+
+from keras.models import Input, Model
 
 """
 Dict mapping RNN names to the corresponding Keras layer
@@ -197,3 +202,171 @@ def clstm(model_input, rnn_units=50, nb_filters=50, embedding_dropout=0.1, outpu
         output = Dropout(output_dropout)(output)
 
     return output
+
+
+
+class UnifiedAbuseRNN:
+    """
+
+    A Unified Deep Learning Architecture for Abuse Detection
+    :return:
+    """
+
+    def __init__(self, input_length, name='MultiChannelRNN', l2=.001, rnn_units=50,
+                 embedding_dropout=None, rnn_type='gru', attention=None, concat_dropout=None,
+                 prelu=False, final_units=50, final_dropout=0.5, nb_metadata_features=10):
+        if rnn_type == 'gru':
+            self.RNN = CuDNNGRU
+        elif rnn_type == 'lstm':
+            self.RNN = CuDNNLSTM
+        else:
+            raise ValueError("No RNN cell named {}!".format(rnn_type))
+
+        self.name = name
+        self.l2 = l2
+        self.input_length = input_length
+        self.rnn_units = rnn_units
+        self.embedding_dropout = embedding_dropout
+        self.attention = attention
+        self.concat_dropout = concat_dropout
+        self.prelu = prelu
+        self.final_units = final_units
+        self.final_dropout = final_dropout
+
+        self.nb_metadata_features = nb_metadata_features
+
+        self.compiled = False
+        self.model_a, self.model_b = self._build_model()
+
+
+    def _build_dense_layer(self, layer_input, dropout):
+        """
+
+        :param layer_input:
+        :param dropout:
+        :return:
+        """
+        activation = None if self.prelu else 'relu'
+
+        dense = Dense(self.final_units, activation=activation)(layer_input)
+
+        if self.prelu:
+            dense = PReLU()(dense)
+
+        dense = Dropout(dropout)(dense)
+
+        return dense
+
+    def _build_word_rnn(self):
+        """
+
+        :return:
+        """
+        model_input = Input(shape=(self.input_length, ), dtype='int32', name='input')
+
+        RNN = self.RNN
+
+        if self.embedding_dropout:
+            model_input = Dropout(self.embedding_dropout)(model_input)
+        bi_rnn = Bidirectional(RNN(self.rnn_units, return_sequences=True))(model_input)
+
+        max_pool = GlobalMaxPool1D()(bi_rnn)
+        average_pool = GlobalAveragePooling1D()(bi_rnn)
+
+        features = [max_pool, average_pool]
+
+        if self.attention:
+            attention = Attention()(bi_rnn)
+            features.append(attention)
+
+        concat = Concatenate()(features)
+
+        if self.concat_dropout:
+            concat = Dropout(self.concat_dropout)(concat)
+
+        dense = self._build_dense_layer(concat, self.final_dropout)
+
+        return dense, model_input
+
+
+    def _build_metadata_network(self):
+        model_input = Input(shape=(self.nb_metadata_features, ), dtype='int32', name='input')
+
+        dense = Dense(50)(model_input)
+
+        return dense, model_input
+
+
+    def _build_single_model(self, word_rnn_trainable, metadata_network_trainable):
+        """
+        Builds a single model.
+        This method exists since in the interleaved training
+        there has to be two models one with a network with frozen weights
+        and the other input with trainable weights
+
+        :return: a model with a branch that has frozen weights
+        and the other branch with trainable weights
+        """
+        word_rnn, word_rnn_input = self._build_word_rnn()
+        metadata_network, metadata_network_input = self._build_metadata_network()
+
+
+        # set each auxilary input to traina
+        word_rnn.trainable = word_rnn_trainable
+        metadata_network.trainable = metadata_network_trainable
+
+        concat = Concatenate()([word_rnn, metadata_network])
+
+        output = Dense(6, activation='sigmoid', name=self.name,
+                       kernel_regularizer=regularizers.l2(self.l2))(concat)
+
+        model = Model(inputs=[word_rnn_input, metadata_network],
+                      outputs=output)
+
+        return model
+
+    def _build_model(self):
+        model_a = self._build_single_model(word_rnn_trainable=True,
+                                           metadata_network_trainable=False)
+
+        model_b = self._build_single_model(word_rnn_trainable=False,
+                                           metadata_network_trainable=True)
+
+        return model_a, model_b
+
+    def _compile_model(self, learning_rate):
+        if not self.compiled:
+            adam = Adam(lr=learning_rate)
+
+            # All of the models right now have 6 sigmoid outputs so binary cross entropy
+            self.model_a.compile(optimizer=adam, loss='binary_crossentropy',
+                               metrics=['accuracy'])
+            self.model_b.compile(optimizer=adam, loss='binary_crossentropy',
+                                 metrics=['accuracy'])
+
+
+    def train(self, x, y, nb_epochs, batch_size, learning_rate=0.001):
+        """
+        The default training method for this network is interleaved training
+
+        :param learning_rate:
+        :return:
+        """
+        self._compile_model(learning_rate)
+
+        mini_batchs = []
+
+        for epoch in range(nb_epochs):
+            for mini_batch_i, mini_batch in enumerate(mini_batchs):
+                if (mini_batch_i + epoch) % 2 == 0:
+                    model = self.model_a
+                else:
+                    model = self.model_b
+
+                model.fit(x=x, y=y, batch_size=batch_size, epochs=1,
+                          verbose=0)
+
+                if (mini_batch_i + epoch) % 2 == 0:
+                    self.model_b.set_weights(self.model_a)
+                else:
+                    self.model_a.set_weights(self.model_b)
