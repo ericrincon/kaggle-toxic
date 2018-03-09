@@ -1,3 +1,5 @@
+import numpy as np
+
 from keras.layers import LSTM, Bidirectional, GlobalMaxPool1D, Dense, GRU, \
     TimeDistributed, CuDNNGRU, CuDNNLSTM, GlobalAveragePooling1D, PReLU
 from keras import backend as K
@@ -354,10 +356,18 @@ class UnifiedAbuseRNN:
         """
         self._compile_model(learning_rate)
 
-        mini_batchs = []
+        def generator():
+            np.random.shuffle(x)
+            np.random.shuffle(y)
+
+            for i in range(0, x.shape[0], batch_size):
+                x_batch = x[i: i + batch_size]
+                y_batch = y[i: i + batch_size]
+
+                yield x_batch, y_batch
 
         for epoch in range(nb_epochs):
-            for mini_batch_i, mini_batch in enumerate(mini_batchs):
+            for mini_batch_i, mini_batch in enumerate(generator()):
                 if (mini_batch_i + epoch) % 2 == 0:
                     model = self.model_a
                 else:
