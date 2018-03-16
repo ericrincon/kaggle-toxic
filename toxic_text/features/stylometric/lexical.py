@@ -7,8 +7,8 @@ class CharacterFeatures:
         exclamation_point_count: number of exclamation points in a string
         """
         self.exclamation_point_count = re.compile('\!')
-        self.char_count = re.compile('[^\s]]')
-        self.upper_case = re.compile('[A-Z]]')
+        self.char_count = re.compile('[^\s]')
+        self.upper_case = re.compile('[A-Z]')
 
 
 
@@ -43,5 +43,5 @@ class CharacterFeatures:
         char_counts = self.get_char_count(text)
         upper_case_counts = text.apply(lambda x: len(self.upper_case.findall(x)))
 
-        return float(upper_case_counts) / float(char_counts)
+        return upper_case_counts.astype(float) / char_counts.astype(float)
 
