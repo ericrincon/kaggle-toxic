@@ -1,17 +1,15 @@
 import numpy as np
 
 from keras.layers import LSTM, Bidirectional, GlobalMaxPool1D, Dense, GRU, \
-    TimeDistributed, CuDNNGRU, CuDNNLSTM, GlobalAveragePooling1D, PReLU
+    TimeDistributed, CuDNNGRU, CuDNNLSTM, GlobalAveragePooling1D, PReLU, \
+    Embedding
 from keras import backend as K
 from keras.engine.topology import Layer
 
 from keras.layers import Conv1D, Concatenate, Flatten, Dropout, \
     Reshape
 
-from keras import regularizers
-
 from toxic_text.models.keras.cnn import dpcnn_convolution_block
-from toxic_text.features.stylometric import number_of_exclamations
 from keras.optimizers import Adam
 from keras import regularizers
 
@@ -214,9 +212,11 @@ class UnifiedAbuseRNN:
     :return:
     """
 
-    def __init__(self, input_length, name='MultiChannelRNN', l2=.001, rnn_units=50,
+    def __init__(self, input_length, vocab_size, name='MultiChannelRNN', l2=.001, rnn_units=50,
                  embedding_dropout=None, rnn_type='gru', attention=None, concat_dropout=None,
-                 prelu=False, final_units=50, final_dropout=0.5, nb_metadata_features=10):
+                 prelu=False, final_units=50, final_dropout=0.5, nb_metadata_features=10,
+                 embedding_dim=100, embedding_trainable=True, embedding_weights=None):
+
         if rnn_type == 'gru':
             self.RNN = CuDNNGRU
         elif rnn_type == 'lstm':
@@ -224,9 +224,9 @@ class UnifiedAbuseRNN:
         else:
             raise ValueError("No RNN cell named {}!".format(rnn_type))
 
+        self.input_length = input_length
         self.name = name
         self.l2 = l2
-        self.input_length = input_length
         self.rnn_units = rnn_units
         self.embedding_dropout = embedding_dropout
         self.attention = attention
@@ -236,6 +236,12 @@ class UnifiedAbuseRNN:
         self.final_dropout = final_dropout
 
         self.nb_metadata_features = nb_metadata_features
+
+        # Embedding layer values
+        self.vocab_size = vocab_size
+        self.embedding_dim = embedding_dim
+        self.embedding_trainable = embedding_trainable
+        self.embedding_weights = embedding_weights
 
         self.compiled = False
         self.model_a, self.model_b = self._build_model()
@@ -264,13 +270,25 @@ class UnifiedAbuseRNN:
 
         :return:
         """
-        model_input = Input(shape=(self.input_length, ), dtype='int32', name='input')
+        model_input = Input(shape=(self.input_length, ), dtype='int32', name='word_input')
+
+        embedding_kwargs = {
+            "input_dim": self.vocab_size + 1,
+            "output_dim": self.embedding_dim,
+            "input_length": self.input_length,
+            "trainable": self.embedding_trainable
+        }
+
+        if self.embedding_weights:
+            embedding_kwargs['weights'] = [self.embedding_weights]
+
+        embedding = Embedding(**embedding_kwargs)(model_input)
 
         RNN = self.RNN
 
         if self.embedding_dropout:
-            model_input = Dropout(self.embedding_dropout)(model_input)
-        bi_rnn = Bidirectional(RNN(self.rnn_units, return_sequences=True))(model_input)
+            embedding = Dropout(self.embedding_dropout)(embedding)
+        bi_rnn = Bidirectional(RNN(self.rnn_units, return_sequences=True))(embedding)
 
         max_pool = GlobalMaxPool1D()(bi_rnn)
         average_pool = GlobalAveragePooling1D()(bi_rnn)
@@ -292,7 +310,11 @@ class UnifiedAbuseRNN:
 
 
     def _build_metadata_network(self):
-        model_input = Input(shape=(self.nb_metadata_features, ), dtype='int32', name='input')
+        """
+
+        :return:
+        """
+        model_input = Input(shape=(self.nb_metadata_features, ), name='metadata_input')
 
         dense = Dense(50)(model_input)
 
@@ -322,7 +344,7 @@ class UnifiedAbuseRNN:
         output = Dense(6, activation='sigmoid', name=self.name,
                        kernel_regularizer=regularizers.l2(self.l2))(concat)
 
-        model = Model(inputs=[word_rnn_input, metadata_network],
+        model = Model(inputs=[word_rnn_input, metadata_network_input],
                       outputs=output)
 
         return model
