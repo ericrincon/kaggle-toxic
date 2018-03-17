@@ -126,12 +126,31 @@ def setup_log_dir(args):
 
 
 def setup_training_data(args, load_train_data=None):
+    """
+    Takes in arguments and returns the training data as numpy arrays
+
+    note that because of backwards compatiblity with other functions in the
+    codebase args is checked to see whether its a dict or an argparse object
+
+    :param args:
+    :param load_train_data:
+    :return:
+    """
+    if isinstance(args, dict):
+        seq_length = args['seq_length']
+        max_words = args['max_words']
+        train = args['train']
+    else:
+        seq_length = args.seq_length
+        max_words = args.max_words
+        train = args.train
+
     if load_train_data:
-        x_train, y_train, vocab_size = load_train_data(args.train)
+        x_train, y_train, vocab_size = load_train_data(train)
         tokenizer = None
     else:
-        texts, y_train = get_training_data(args.train)
-        tokenizer, x_train = load_setup_fit_tokenizer(texts, args.seq_length, args.max_words)
+        texts, y_train = get_training_data(train)
+        tokenizer, x_train = load_setup_fit_tokenizer(texts, seq_length, max_words)
         vocab_size = len(tokenizer.word_index)
 
     return np.array(x_train), np.array(y_train), tokenizer, vocab_size

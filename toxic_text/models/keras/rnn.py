@@ -379,12 +379,13 @@ class UnifiedAbuseRNN:
         self._compile_model(learning_rate)
 
         def generator():
-            np.random.shuffle(x)
-            np.random.shuffle(y)
+            idxs = np.arange(x[0].shape[0])
+            np.random.shuffle(idxs)
 
-            for i in range(0, x.shape[0], batch_size):
-                x_batch = x[i: i + batch_size]
-                y_batch = y[i: i + batch_size]
+            for i in range(0, x[0].shape[0], batch_size):
+                idx_batch = idxs[i: i + batch_size]
+                x_batch = [_x[idx_batch] for _x in x]
+                y_batch = y[idx_batch]
 
                 yield x_batch, y_batch
 
@@ -395,10 +396,12 @@ class UnifiedAbuseRNN:
                 else:
                     model = self.model_b
 
-                model.fit(x=x, y=y, batch_size=batch_size, epochs=1,
-                          verbose=0)
+                history = model.fit(x=x, y=y, batch_size=batch_size, epochs=1,
+                                    verbose=0)
 
                 if (mini_batch_i + epoch) % 2 == 0:
-                    self.model_b.set_weights(self.model_a)
+                    self.model_b.set_weights(self.model_a.get_weights())
                 else:
-                    self.model_a.set_weights(self.model_b)
+                    self.model_a.set_weights(self.model_b.get_weights())
+
+                print(history)
