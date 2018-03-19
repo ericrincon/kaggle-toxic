@@ -83,17 +83,32 @@ def setup_callbacks(log_dir='logs', patience=5, filepath='model_checkpoint'):
     return [tensorboard, early_stopping, model_checkpoint]
 
 
-def create_embedding_matrix(args, tokenizer=None):
-    if args.word2vec:
+def create_embedding_matrix(args, vocab_size, tokenizer=None):
+    """
+
+    :param args:
+    :param tokenizer:
+    :return:
+    """
+    if isinstance(args, dict):
+        word2vec_path = args['word2vec']
+    else:
+        word2vec_path = args.word2vec
+
+    if word2vec_path:
         assert tokenizer is not None, 'you must pass a tokenizer object!'
 
-        if args.word2vec.split('.')[-1] == 'w2v':
-            word2vec = Word2Vec.load(args.word2vec)
-        elif args.word2vec.split('.')[-1] == 'vec':
-            word2vec = KeyedVectors.load_word2vec_format(args.word2vec)
+        print('Loading word vectors at {}...'.format(word2vec_path))
+
+        if word2vec_path.split('.')[-1] == 'w2v':
+            word2vec = Word2Vec.load(word2vec_path)
+        elif word2vec_path.split('.')[-1] == 'vec':
+            word2vec = KeyedVectors.load_word2vec_format(word2vec_path)
         else:
-            raise ValueError('Cant load format {}'.format(args.word2vec.split('.')[-1]))
-        embedding_matrix = build_embedding_matrix(tokenizer, word2vec)
+            raise ValueError('Cant load format {}'.format(word2vec_path.split('.')[-1]))
+
+
+        embedding_matrix = build_embedding_matrix(tokenizer, word2vec, vocab_size)
         embedding_dim = word2vec.vector_size
     else:
         embedding_matrix = None
@@ -136,6 +151,7 @@ def setup_training_data(args, load_train_data=None):
     :param load_train_data:
     :return:
     """
+
     if isinstance(args, dict):
         seq_length = args['seq_length']
         max_words = args['max_words']
@@ -151,7 +167,12 @@ def setup_training_data(args, load_train_data=None):
     else:
         texts, y_train = get_training_data(train)
         tokenizer, x_train = load_setup_fit_tokenizer(texts, seq_length, max_words)
+
+    if max_words is None:
         vocab_size = len(tokenizer.word_index)
+    else:
+        vocab_size = max_words
+
 
     return np.array(x_train), np.array(y_train), tokenizer, vocab_size
 

@@ -212,9 +212,9 @@ class UnifiedAbuseRNN:
     :return:
     """
 
-    def __init__(self, input_length, vocab_size, name='MultiChannelRNN', l2=.001, rnn_units=50,
+    def __init__(self, input_length, vocab_size, name='MultiChannelRNN', l2=0.0, rnn_units=50,
                  embedding_dropout=None, rnn_type='gru', attention=None, concat_dropout=None,
-                 prelu=False, final_units=50, final_dropout=0.5, nb_metadata_features=10,
+                 prelu=False, final_units=50, final_dropout=None, nb_metadata_features=10,
                  embedding_dim=100, embedding_trainable=True, embedding_weights=None):
 
         if rnn_type == 'gru':
@@ -244,6 +244,10 @@ class UnifiedAbuseRNN:
         self.embedding_weights = embedding_weights
 
         self.compiled = False
+        self.model_layers = {}
+
+
+
         self.model_a, self.model_b = self._build_model()
 
 
@@ -261,15 +265,34 @@ class UnifiedAbuseRNN:
         if self.prelu:
             dense = PReLU()(dense)
 
-        dense = Dropout(dropout)(dense)
+        if dropout:
+            dense = Dropout(dropout)(dense)
 
         return dense
 
-    def _build_word_rnn(self):
+
+    def _add_layer(self, layer, model):
+        """
+
+        :param layer:
+        :param model:
+        :return:
+        """
+
+        model_layers = self._get_model_layers(model)
+        model_layers.append(layer)
+
+        return layer
+
+    def _build_word_rnn(self, model_name):
         """
 
         :return:
         """
+
+        model_name += '_rnn'
+        self.model_layers[model_name] = []
+
         model_input = Input(shape=(self.input_length, ), dtype='int32', name='word_input')
 
         embedding_kwargs = {
@@ -279,49 +302,73 @@ class UnifiedAbuseRNN:
             "trainable": self.embedding_trainable
         }
 
-        if self.embedding_weights:
+        if self.embedding_weights is not None:
             embedding_kwargs['weights'] = [self.embedding_weights]
 
-        embedding = Embedding(**embedding_kwargs)(model_input)
+        embedding = self._add_layer(Embedding(**embedding_kwargs)(model_input),
+                                    model_name)
 
         RNN = self.RNN
 
         if self.embedding_dropout:
-            embedding = Dropout(self.embedding_dropout)(embedding)
-        bi_rnn = Bidirectional(RNN(self.rnn_units, return_sequences=True))(embedding)
+            embedding = self._add_layer(Dropout(self.embedding_dropout)(embedding), model_name)
 
-        max_pool = GlobalMaxPool1D()(bi_rnn)
-        average_pool = GlobalAveragePooling1D()(bi_rnn)
+        bi_rnn = self._add_layer(Bidirectional(RNN(self.rnn_units, return_sequences=True))(embedding),
+                                 model_name)
+
+        max_pool = self._add_layer(GlobalMaxPool1D()(bi_rnn), model_name)
+        average_pool = self._add_layer(GlobalAveragePooling1D()(bi_rnn), model_name)
 
         features = [max_pool, average_pool]
 
         if self.attention:
-            attention = Attention()(bi_rnn)
+            attention = self._add_layer(Attention()(bi_rnn), model_name)
             features.append(attention)
 
-        concat = Concatenate()(features)
+        concat = self._add_layer(Concatenate()(features), model_name)
 
         if self.concat_dropout:
-            concat = Dropout(self.concat_dropout)(concat)
+            concat = self._add_layer(Dropout(self.concat_dropout)(concat), model_name)
 
-        dense = self._build_dense_layer(concat, self.final_dropout)
+        dense = self._add_layer(self._build_dense_layer(concat, self.final_dropout),
+                                model_name)
 
         return dense, model_input
 
+    def _get_model_layers(self, model_branch_name):
+        if model_branch_name not in self.model_layers:
+            assert ValueError('Model branch {} not defined!')
 
-    def _build_metadata_network(self):
+        return self.model_layers[model_branch_name]
+
+
+    def _build_metadata_network(self, model_name):
         """
 
         :return:
         """
+        model_name += '_dnn'
+        self.model_layers[model_name] = []
+
         model_input = Input(shape=(self.nb_metadata_features, ), name='metadata_input')
 
-        dense = Dense(50)(model_input)
+        dense = self._add_layer(Dense(50)(model_input), model_name)
 
         return dense, model_input
 
+    def _set_trainable(self, model_name, trainable):
+        """
 
-    def _build_single_model(self, word_rnn_trainable, metadata_network_trainable):
+        :param model_name:
+        :param trainable:
+        :return:
+        """
+
+        for layer in self._get_model_layers(model_name):
+            layer.trainable = trainable
+
+
+    def _build_single_model(self, model_name, word_rnn_trainable, metadata_network_trainable):
         """
         Builds a single model.
         This method exists since in the interleaved training
@@ -331,17 +378,16 @@ class UnifiedAbuseRNN:
         :return: a model with a branch that has frozen weights
         and the other branch with trainable weights
         """
-        word_rnn, word_rnn_input = self._build_word_rnn()
-        metadata_network, metadata_network_input = self._build_metadata_network()
+        word_rnn, word_rnn_input = self._build_word_rnn(model_name)
+        metadata_network, metadata_network_input = self._build_metadata_network(model_name)
 
-
-        # set each auxilary input to traina
-        word_rnn.trainable = word_rnn_trainable
-        metadata_network.trainable = metadata_network_trainable
+        # # set each auxilary input to trainable
+        self._set_trainable(model_name + '_rnn', word_rnn_trainable)
+        self._set_trainable(model_name + '_dnn', metadata_network_trainable)
 
         concat = Concatenate()([word_rnn, metadata_network])
 
-        output = Dense(6, activation='sigmoid', name=self.name,
+        output = Dense(6, activation='sigmoid', name='output',
                        kernel_regularizer=regularizers.l2(self.l2))(concat)
 
         model = Model(inputs=[word_rnn_input, metadata_network_input],
@@ -350,10 +396,10 @@ class UnifiedAbuseRNN:
         return model
 
     def _build_model(self):
-        model_a = self._build_single_model(word_rnn_trainable=True,
+        model_a = self._build_single_model('a', word_rnn_trainable=True,
                                            metadata_network_trainable=False)
 
-        model_b = self._build_single_model(word_rnn_trainable=False,
+        model_b = self._build_single_model('b', word_rnn_trainable=False,
                                            metadata_network_trainable=True)
 
         return model_a, model_b
@@ -367,7 +413,6 @@ class UnifiedAbuseRNN:
                                metrics=['accuracy'])
             self.model_b.compile(optimizer=adam, loss='binary_crossentropy',
                                  metrics=['accuracy'])
-
 
     def train(self, x, y, nb_epochs, batch_size, learning_rate=0.001):
         """
@@ -385,6 +430,7 @@ class UnifiedAbuseRNN:
             for i in range(0, x[0].shape[0], batch_size):
                 idx_batch = idxs[i: i + batch_size]
                 x_batch = [_x[idx_batch] for _x in x]
+                print([l.shape for l in x_batch])
                 y_batch = y[idx_batch]
 
                 yield x_batch, y_batch
@@ -398,10 +444,12 @@ class UnifiedAbuseRNN:
 
                 history = model.fit(x=x, y=y, batch_size=batch_size, epochs=1,
                                     verbose=0)
+                #
+                # if (mini_batch_i + epoch) % 2 == 0:
+                #     self.model_b.set_weights(model.get_weights())
+                # else:
+                #     self.model_a.set_weights(model.get_weights())
 
-                if (mini_batch_i + epoch) % 2 == 0:
-                    self.model_b.set_weights(self.model_a.get_weights())
-                else:
-                    self.model_a.set_weights(self.model_b.get_weights())
-
-                print(history)
+                if mini_batch_i == 2:
+                    break
+            break
